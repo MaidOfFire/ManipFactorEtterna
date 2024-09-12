@@ -9,3 +9,5 @@
    * Click on the Tampermonkey icon in your browser's toolbar.
    * Click the + icon or select "Create a new script" to open a new script editor.
    * Paste the copied script into the editor and save it.
+
+![](https://i.imgur.com/8zgsVxT.png)
