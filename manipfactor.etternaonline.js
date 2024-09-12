@@ -14,6 +14,7 @@
 
 (function() {
     'use strict';
+    const test = 0
 
     const scorePagePattern = /^https:\/\/etternaonline\.com\/users\/[^\/]+\/scores\/[^\/]+\/?$/;
 
