@@ -11,3 +11,5 @@
    * Paste the copied script into the editor and save it.
 
 ![](https://i.imgur.com/8zgsVxT.png)
+
+## How it Works:
