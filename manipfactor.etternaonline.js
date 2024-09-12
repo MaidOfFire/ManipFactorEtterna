@@ -6,8 +6,8 @@
 // @author       U1wknUzeU6, OpakyL
 // @match        https://etternaonline.com/*
 // @grant        none
-// @updateURL    
-// @downloadURL  
+// @updateURL    https://raw.githubusercontent.com/MaidOfFire/ManipFactorEtterna/main/manipfactor.etternaonline.js
+// @downloadURL  https://raw.githubusercontent.com/MaidOfFire/ManipFactorEtterna/main/manipfactor.etternaonline.js
 // ==/UserScript==
 
 (function() {
