@@ -1,7 +1,7 @@
 # ManipFactorEtterna
 ## In-Game Installation:
 ### Til Death:
-1. Move manipscore.lua to
+1. Move manipfactor.lua to
 >Themes\Til Death\BGAnimations\ScreenEvaluation decorations
 2. Open default.lua from the same folder and add
 ```
@@ -23,11 +23,11 @@ self:GetParent():GetParent():GetParent():GetChild("OffsetPlot"):playcommand("Set
 ![](https://i.imgur.com/fJyWtYi.png)
 
 ### Rebirth:
-1. Move manipscore.lua to
+1. Move manipfactor.lua to
 >Themes\Rebirth\BGAnimations\ScreenEvaluation decorations
 2. open mainDisplay.lua from the same folder and add
 ```
-t[#t + 1] = LoadActor(“manipscore”)
+t[#t + 1] = LoadActor("manipfactor")
 ```
 right before 
 ```
