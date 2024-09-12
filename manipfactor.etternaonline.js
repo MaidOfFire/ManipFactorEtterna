@@ -8,6 +8,7 @@
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/MaidOfFire/ManipFactorEtterna/main/manipfactor.etternaonline.js
 // @downloadURL  https://raw.githubusercontent.com/MaidOfFire/ManipFactorEtterna/main/manipfactor.etternaonline.js
+// @homepageURL  https://github.com/MaidOfFire/ManipFactorEtterna
 // ==/UserScript==
 
 (function() {
