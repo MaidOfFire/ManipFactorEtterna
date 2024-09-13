@@ -51,6 +51,7 @@ and above the `end,` line, add the following line:
 MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 ```
 as on the figure:
+
 ![](https://i.imgur.com/Wb4Qk6i.png)
 
 ![](https://i.imgur.com/Ym6Ajnm.png)
