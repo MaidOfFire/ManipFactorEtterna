@@ -1,21 +1,21 @@
 # ManipFactorEtterna
 ## In-Game Installation:
 ### Til Death:
-1. Move manipfactor.lua to
->Themes\Til Death\BGAnimations\ScreenEvaluation decorations
-2. Open default.lua from the same folder and add
+1. Move `manipfactor.lua` to:
+> Themes\Til Death\BGAnimations\ScreenEvaluation decorations
+2. Open `default.lua` from the same folder and add:
 ```
 t[#t + 1] = LoadActor("manipfactor")
 ```
-right before 
+right before:
 ```
 return t
 ```
-3. Open scoreboard.lua from the same folder and add
+3. Open `scoreboard.lua` from the same folder and add:
 ```
 MESSAGEMAN:Broadcast("GetScore", {score = hsTable[index]})
 ```
-after second
+after the second occurrence of:
 ```
 self:GetParent():GetParent():GetParent():GetChild("OffsetPlot"):playcommand("SetFromScore", {score =  hsTable[index]})
 ```
@@ -23,21 +23,21 @@ self:GetParent():GetParent():GetParent():GetChild("OffsetPlot"):playcommand("Set
 ![](https://i.imgur.com/fJyWtYi.png)
 
 ### Rebirth:
-1. Move manipfactor.lua to
+1. Move `manipfactor.lua` to:
 >Themes\Rebirth\BGAnimations\ScreenEvaluation decorations
-2. open mainDisplay.lua from the same folder and add
+2. open `mainDisplay.lua` from the same folder and add:
 ```
 t[#t + 1] = LoadActor("manipfactor")
 ```
-right before 
+right before:
 ```
 return t
 ```
-3. in the same file find string
+3. In the same file, find the line:
 ```
 JudgeWindowChangedMessageCommand = function(self)
 ```
-and add this string above "end,"
+and add the following line above "end,":
 ```
 MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 ```
