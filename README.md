@@ -44,6 +44,8 @@ MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 
 ![](https://i.imgur.com/PWOHL84.png)
 
+---
+
 ## EtternaOnline Installation:
 1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension.
 2. Copy the script from this repository: [manipfactor.etternaonline.js](https://raw.githubusercontent.com/MaidOfFire/ManipFactorEtterna/main/manipfactor.etternaonline.js).
