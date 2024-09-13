@@ -213,7 +213,7 @@ t[#t + 1] = Def.ActorFrame {
         if aspectRatio < 1.6 then
             self:addx(-250)
         else 
-            self:addx(-270)
+            self:addx(-290)
         end
         self:addy(79)
     end,
