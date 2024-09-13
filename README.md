@@ -25,6 +25,7 @@ self:GetParent():GetParent():GetParent():GetChild("OffsetPlot"):playcommand("Set
 ```
 
 ![](https://i.imgur.com/fJyWtYi.png)
+
 ![](https://i.imgur.com/nkgtlSO.png)
 
 ### Rebirth:
@@ -48,6 +49,7 @@ MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 ```
 
 ![](https://i.imgur.com/Wb4Qk6i.png)
+
 ![](https://i.imgur.com/Ym6Ajnm.png)
 
 ---
