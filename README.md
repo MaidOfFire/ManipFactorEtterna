@@ -1,7 +1,7 @@
 # ManipFactorEtterna
 ## In-Game Installation:
 ### Til Death:
-1. Move `manipfactor.lua` to:
+1. Move `manipfactor.lua` to the following directory inside your Etterna game folder:
 > Themes\Til Death\BGAnimations\ScreenEvaluation decorations
 2. Open `default.lua` from the same folder and add:
 ```
@@ -23,7 +23,7 @@ self:GetParent():GetParent():GetParent():GetChild("OffsetPlot"):playcommand("Set
 ![](https://i.imgur.com/fJyWtYi.png)
 
 ### Rebirth:
-1. Move `manipfactor.lua` to:
+1. Move `manipfactor.lua` to the following directory inside your Etterna game folder:
 >Themes\Rebirth\BGAnimations\ScreenEvaluation decorations
 2. open `mainDisplay.lua` from the same folder and add:
 ```
