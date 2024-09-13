@@ -60,6 +60,8 @@ MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 
 ![](https://i.imgur.com/8zgsVxT.png)
 
+---
+
 ## How it Works:
 The number **Manip Factor** (or MF) gets bigger the more a player hits one-hand misaligned notes (like trills or streams), as if they were a single aligned pattern (like jumps). The assumption is that when a player abuses this kind of playstyle, the hit errors (offsets) for consecutive different columns notes will be negatively correlated—meaning if one note is hit late, the next one tends to be hit early, making the difference between the errors larger than if the notes were hit as expected.
 
