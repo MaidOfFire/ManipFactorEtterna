@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ManipFactor for EtternaOnline
 // @namespace    http://tampermonkey.net/
-// @version      0.1.3
+// @version      0.1.4
 // @description  Estimates the amount of manip from the replay data.
 // @author       U1wknUzeU6, OpakyL
 // @match        https://etternaonline.com/*
@@ -238,15 +238,37 @@
             }
         });
     };
-
+    
     // Check if on score page and display ManipScore
     if (scorePagePattern.test(window.location.href)) {
         initializeManipScoreDisplay();
     }
 
-    // Handle navigation on the website
-    window.navigation.addEventListener("navigate", event => {
-        if (scorePagePattern.test(event.destination.url)) {
+    // Monkey-patch history methods to detect navigation
+    (function() {
+        const _pushState = history.pushState;
+        const _replaceState = history.replaceState;
+
+        history.pushState = function(state, title, url) {
+            const result = _pushState.apply(this, arguments);
+            window.dispatchEvent(new Event('locationchange'));
+            return result;
+        };
+
+        history.replaceState = function(state, title, url) {
+            const result = _replaceState.apply(this, arguments);
+            window.dispatchEvent(new Event('locationchange'));
+            return result;
+        };
+
+        window.addEventListener('popstate', function() {
+            window.dispatchEvent(new Event('locationchange'));
+        });
+    })();
+
+    // Listen for custom 'locationchange' event
+    window.addEventListener('locationchange', function() {
+        if (scorePagePattern.test(window.location.href)) {
             initializeManipScoreDisplay();
         }
     });
