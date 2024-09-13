@@ -1,5 +1,8 @@
 # ManipFactorEtterna
 An Etterna addon that estimates the amount of manip based on replay data, introducing a new metric for play accuracy. Offers both an In-Game version and a browser-based version for EtternaOnline.
+
+Follow the instructions below for installation:
+
 ## In-Game Installation:
 ### Til Death:
 1. Move `manipfactor.lua` to the following directory inside your Etterna game folder:
