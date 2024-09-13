@@ -7,22 +7,24 @@ Follow the instructions below for installation:
 ### Til Death:
 1. Move `manipfactor.lua` to the following directory inside your Etterna game folder:
 > Themes\Til Death\BGAnimations\ScreenEvaluation decorations
-2. Open `default.lua` from the same folder and add:
-```
-t[#t + 1] = LoadActor("manipfactor")
-```
-right before:
+2. Open `default.lua` from the same folder and **before** the line:
 ```
 return t
 ```
-3. Open `scoreboard.lua` from the same folder and add:
+add the following line:
 ```
-MESSAGEMAN:Broadcast("GetScore", {score = hsTable[index]})
+t[#t + 1] = LoadActor("manipfactor")
 ```
-after the second occurrence of:
+
+3. Open `scoreboard.lua` from the same folder and **after the second occurrence** of the line:
 ```
 self:GetParent():GetParent():GetParent():GetChild("OffsetPlot"):playcommand("SetFromScore", {score =  hsTable[index]})
 ```
+add the following line:
+```
+MESSAGEMAN:Broadcast("GetScore", {score = hsTable[index]})
+```
+
 
 ![](https://i.imgur.com/fJyWtYi.png)
 
@@ -31,19 +33,20 @@ self:GetParent():GetParent():GetParent():GetChild("OffsetPlot"):playcommand("Set
 ### Rebirth:
 1. Move `manipfactor.lua` to the following directory inside your Etterna game folder:
 >Themes\Rebirth\BGAnimations\ScreenEvaluation decorations
-2. open `mainDisplay.lua` from the same folder and add:
-```
-t[#t + 1] = LoadActor("manipfactor")
-```
-right before:
+2. open `mainDisplay.lua` from the same folder and **before** the line:
 ```
 return t
 ```
-3. In the same file, find the line:
+add the following line:
+```
+t[#t + 1] = LoadActor("manipfactor")
+```
+
+3. In the same file, find the block of code that starts with:
 ```
 JudgeWindowChangedMessageCommand = function(self)
 ```
-and add the following line above `end,`:
+and above the `end,` line, add the following line:
 ```
 MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 ```
