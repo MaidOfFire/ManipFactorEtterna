@@ -25,6 +25,7 @@ self:GetParent():GetParent():GetParent():GetChild("OffsetPlot"):playcommand("Set
 ```
 
 ![](https://i.imgur.com/fJyWtYi.png)
+![](https://i.imgur.com/nkgtlSO.png)
 
 ### Rebirth:
 1. Move `manipfactor.lua` to the following directory inside your Etterna game folder:
@@ -46,7 +47,8 @@ and add the following line above `end,`:
 MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 ```
 
-![](https://i.imgur.com/PWOHL84.png)
+![](https://i.imgur.com/Wb4Qk6i.png)
+![](https://i.imgur.com/Ym6Ajnm.png)
 
 ---
 
