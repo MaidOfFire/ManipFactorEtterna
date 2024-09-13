@@ -37,7 +37,7 @@ return t
 ```
 JudgeWindowChangedMessageCommand = function(self)
 ```
-and add the following line above "end,":
+and add the following line above `end,`:
 ```
 MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 ```
