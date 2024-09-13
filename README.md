@@ -26,11 +26,12 @@ add the following line:
 ```
 MESSAGEMAN:Broadcast("GetScore", {score = hsTable[index]})
 ```
-as on the figure:
 
 ![](https://i.imgur.com/fJyWtYi.png)
-
+---
 ![](https://i.imgur.com/nkgtlSO.png)
+
+---
 
 ### Rebirth:
 1. Move `manipfactor.lua` to the following directory inside your Etterna game folder:
@@ -54,10 +55,9 @@ and above the `end,` line, add the following line:
 ```
 MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 ```
-as on the figure:
 
 ![](https://i.imgur.com/Wb4Qk6i.png)
-
+---
 ![](https://i.imgur.com/Ym6Ajnm.png)
 
 ---
