@@ -16,6 +16,8 @@ add the following line:
 t[#t + 1] = LoadActor("manipfactor")
 ```
 
+![](https://i.imgur.com/l4HDRUo.png)
+
 3. Open `scoreboard.lua` from the same folder and **after the second occurrence** of the line:
 ```
 self:GetParent():GetParent():GetParent():GetChild("OffsetPlot"):playcommand("SetFromScore", {score =  hsTable[index]})
@@ -41,6 +43,8 @@ add the following line:
 ```
 t[#t + 1] = LoadActor("manipfactor")
 ```
+
+![](https://i.imgur.com/YxsxjK6.png)
 
 3. In the same file, find the block of code that starts with:
 ```
