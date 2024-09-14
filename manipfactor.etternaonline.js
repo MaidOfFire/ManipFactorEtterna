@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ManipFactor for EtternaOnline
 // @namespace    http://tampermonkey.net/
-// @version      0.1.4
+// @version      0.1.5
 // @description  Estimates the amount of manip from the replay data.
 // @author       U1wknUzeU6, OpakyL
 // @match        https://etternaonline.com/*
