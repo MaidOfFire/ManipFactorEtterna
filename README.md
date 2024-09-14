@@ -80,7 +80,7 @@ The number **Manip Factor** (or MF) gets bigger the more a player hits one-hand 
 To measure the degree of such abuse from the replay data, we collect pairs of all misaligned one-hand notes and calculate the difference between their error values: |error_B - error_A|. Then we normalize this by using half the average time interval between notes on a single column and average the number across all pairs. The bigger the final number gets the more the player's technique leans toward manip play. 
 
 ## Afterword:
-I understand that this metric is not perfect and that there is significant room for improving its accuracy. If you'd like to contribute, feel free to contact me on Discord at u1wkn. Although the primary purpose of the metric is to guide your skill development in a direction orthogonal to manip play, I can also see potential for implementing a score nerf system based on this factor, converting it into an MSD scaler, for example, using this function: [desmos.com](https://www.desmos.com/calculator/oflyh0yvc7).
+I understand that this metric is not perfect and that there is significant room for improving its accuracy. If you'd like to contribute, feel free to contact me on Discord at u1wkn. Although the primary purpose of the metric is to guide your skill development in a direction orthogonal to manip, I can also see potential for implementing a score nerf system based on this factor, converting it into an MSD scaler, for example, using this kind of function: [example](https://www.desmos.com/calculator/oflyh0yvc7).
 
 
 
