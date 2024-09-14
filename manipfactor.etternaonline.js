@@ -16,6 +16,7 @@
     'use strict';
 
     const scorePagePattern = /^https:\/\/etternaonline\.com\/users\/[^\/]+\/scores\/[^\/]+\/?$/;
+    let locationChangeTimeout;
 
     // Helper function to calculate weighted mean
     function weightedMean(values, weights) {
@@ -238,11 +239,22 @@
             }
         });
     };
-    
-    // Check if on score page and display ManipScore
-    if (scorePagePattern.test(window.location.href)) {
-        initializeManipScoreDisplay();
+
+    const initializeWrapper = () => {
+        clearTimeout(locationChangeTimeout);
+        // Set a debounce to prevent multiple callings
+        locationChangeTimeout = setTimeout(() => {
+            if (scorePagePattern.test(window.location.href)) {
+                // Check if on score page and display ManipScore
+                if (scorePagePattern.test(window.location.href)) {
+                    initializeManipScoreDisplay();
+                }
+            }
+        }, 300);
     }
+
+    // First init of script
+    initializeWrapper();
 
     // Monkey-patch history methods to detect navigation
     (function() {
@@ -268,8 +280,6 @@
 
     // Listen for custom 'locationchange' event
     window.addEventListener('locationchange', function() {
-        if (scorePagePattern.test(window.location.href)) {
-            initializeManipScoreDisplay();
-        }
+        initializeWrapper();
     });
 })();
