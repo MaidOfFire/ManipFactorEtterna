@@ -8,22 +8,22 @@ Follow the instructions below for installation:
 1. Move `manipfactor.lua` to the following directory inside your Etterna game folder:
 > Themes\Til Death\BGAnimations\ScreenEvaluation decorations
 2. Open `default.lua` from the same folder and **before** the line:
-```lua
+```
 return t
 ```
 add the following line:
-```lua
+```
 t[#t + 1] = LoadActor("manipfactor")
 ```
 
 ![](https://i.imgur.com/l4HDRUo.png)
 
 3. Open `scoreboard.lua` from the same folder and **after the second occurrence** of the line:
-```lua
+```
 self:GetParent():GetParent():GetParent():GetChild("OffsetPlot"):playcommand("SetFromScore", {score =  hsTable[index]})
 ```
 add the following line:
-```lua
+```
 MESSAGEMAN:Broadcast("GetScore", {score = hsTable[index]})
 ```
 
@@ -37,22 +37,22 @@ MESSAGEMAN:Broadcast("GetScore", {score = hsTable[index]})
 1. Move `manipfactor.lua` to the following directory inside your Etterna game folder:
 >Themes\Rebirth\BGAnimations\ScreenEvaluation decorations
 2. open `mainDisplay.lua` from the same folder and **before** the line:
-```lua
+```
 return t
 ```
 add the following line:
-```lua
+```
 t[#t + 1] = LoadActor("manipfactor")
 ```
 
 ![](https://i.imgur.com/YxsxjK6.png)
 
 3. In the same file, find the block of code that starts with:
-```lua
+```
 JudgeWindowChangedMessageCommand = function(self)
 ```
 and above the `end,` line, add the following line:
-```lua
+```
 MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 ```
 
