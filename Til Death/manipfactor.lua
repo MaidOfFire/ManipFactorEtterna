@@ -11,16 +11,14 @@ local aspectRatio = GetScreenAspectRatio()
 
 local mfDisplayX
 local mfDisplayY
-local mfDisplayZoom
+local mfDisplayZoom = 0.25
 
 if aspectRatio < 1.6 then
-    mfDisplayX = SCREEN_RIGHT - 80
+    mfDisplayX = SCREEN_RIGHT - 28
     mfDisplayY = SCREEN_CENTER_Y + 66
-    mfDisplayZoom = 0.2
 else
     mfDisplayX = SCREEN_LEFT + 42
     mfDisplayY = 350
-    mfDisplayZoom = 0.25
 end
 
 local td = {} -- chart timing data
@@ -238,8 +236,9 @@ end
 t[#t + 1] = Def.ActorFrame {
     UIElements.TextToolTip(1, 1, "Common Large") .. {
         InitCommand = function(self)
-            self:xy(mfDisplayX, mfDisplayY):halign(1):zoom(mfDisplayZoom)
-            self:settext("MF:")
+            self:xy(mfDisplayX + 3, mfDisplayY):halign(0)
+            self:zoom(mfDisplayZoom)
+            self:settext("MF")
         end,
         MouseOverCommand = function(self)
             self:GetParent():GetChild("ManipFactor"):settextf("L: %2.1f%% R: %2.1f%%", mf[3] * 100, mf[2] * 100)
@@ -251,7 +250,8 @@ t[#t + 1] = Def.ActorFrame {
     UIElements.TextToolTip(1, 1, "Common Large") .. {
         Name = "ManipFactor",
         InitCommand = function(self)
-            self:xy(mfDisplayX + 3, mfDisplayY):halign(0):zoom(mfDisplayZoom)
+            self:xy(mfDisplayX, mfDisplayY):halign(1)
+            self:zoom(mfDisplayZoom)
             self:maxwidth(350)
             self:queuecommand("Set")
         end,
