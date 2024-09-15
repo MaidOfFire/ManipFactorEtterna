@@ -1,4 +1,4 @@
---Version: 09.15.24 00:30
+--Version: 09.15.24 05:45
 --For Til Death
 local t = Def.ActorFrame {}
 
@@ -168,14 +168,16 @@ local function CalculateDeviations(keyAData, keyBData)
         table.sort(keyAData, function(a,b) return a[1] < b[1] end)
         table.sort(keyBData, function(a,b) return a[1] < b[1] end)
         -- Calculate deviations
+        local finder = 1
         for i = 1, #keyAData do
             local timeA, errorA = keyAData[i][1], keyAData[i][2]
             
             -- Find the closest previous note in keyBData
             local lastKeyBItem
-            for j = 1, #keyBData do
+            for j = finder, #keyBData do
                 if keyBData[j][1] < (timeA-eps) then
                     lastKeyBItem = keyBData[j]
+                    finder = j
                 else
                     break
                 end
@@ -225,6 +227,10 @@ local function GetManipFactor()
     local mfleft = WeightedMean({mfk0to1, mfk1to0}, {#k0to1, #k1to0})
     local mfright = WeightedMean({mfk2to3, mfk3to2}, {#k2to3, #k3to2})
 
+    if mftotal ~= mftotal then -- x ~= x means that x == NaN
+        mftotal, mfleft, mfright = 0, 0, 0
+    end
+
     return {mftotal, mfright, mfleft}
 end
 
@@ -272,11 +278,7 @@ t[#t + 1] = Def.ActorFrame {
 
             mf = GetManipFactor()
 
-            if mf[1] ~= mf[1] then -- x ~= x means that x == NaN
-                mf[1], mf[2], mf[3] = 0, 0, 0
-            end
-
-            self:diffuse(byMF(mf[1], false))
+            self:diffuse(byMF(mf[1]))
             self:settextf("%2.1f%%", mf[1] * 100)
         end,
         MouseOverCommand = function(self)
