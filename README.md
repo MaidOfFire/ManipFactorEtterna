@@ -5,9 +5,16 @@ Follow the instructions below for installation:
 
 ## In-Game Installation:
 ⚠️ **Caution: Before editing any files, make sure to create a backup of them. Don't leave the backup files in the same directory.**
-### Til Death:
+### Til Death and Reimuboobs-theme:
 1. Move `manipfactor.lua` to the following directory inside your Etterna game folder:
 > Themes\Til Death\BGAnimations\ScreenEvaluation decorations
+
+or
+
+> Themes\reimuboobs-theme-main\BGAnimations\ScreenEvaluation decorations
+
+depending on your theme.
+
 2. Open `default.lua` from the same folder and **before** the last line:
 ```
 return t
@@ -29,8 +36,14 @@ MESSAGEMAN:Broadcast("GetScore", {score = hsTable[index]})
 ```
 
 ![](https://i.imgur.com/fJyWtYi.png)
----
-![](https://i.imgur.com/nkgtlSO.png)
+
+<details>
+  <summary>Preview</summary>
+  
+  ![](https://i.imgur.com/nkgtlSO.png)
+  ---
+  ![](https://i.imgur.com/Pt16EJb.png)
+</details>
 
 ---
 
@@ -58,8 +71,12 @@ MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 ```
 
 ![](https://i.imgur.com/Wb4Qk6i.png)
----
-![](https://i.imgur.com/Ym6Ajnm.png)
+
+<details>
+  <summary>Preview</summary>
+
+  ![](https://i.imgur.com/Ym6Ajnm.png)
+</details>
 
 ---
 
@@ -71,7 +88,11 @@ MESSAGEMAN:Broadcast("GetScore", {score = params.score})
    * Click the + icon or select "Create a new script" to open a new script editor.
    * Paste the copied script into the editor and save it.
 
-![](https://i.imgur.com/8zgsVxT.png)
+<details>
+  <summary>Preview</summary>
+
+  ![](https://i.imgur.com/8zgsVxT.png)
+</details>
 
 ---
 
