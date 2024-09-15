@@ -36,10 +36,14 @@ MESSAGEMAN:Broadcast("GetScore", {score = hsTable[index]})
 ```
 
 ![](https://i.imgur.com/fJyWtYi.png)
----
-![](https://i.imgur.com/nkgtlSO.png)
----
-![](https://i.imgur.com/Pt16EJb.png)
+
+<details>
+  <summary>Preview</summary>
+  
+  ![](https://i.imgur.com/nkgtlSO.png)
+  ---
+  ![](https://i.imgur.com/Pt16EJb.png)
+</details>
 
 ---
 
@@ -67,8 +71,12 @@ MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 ```
 
 ![](https://i.imgur.com/Wb4Qk6i.png)
----
-![](https://i.imgur.com/Ym6Ajnm.png)
+
+<details>
+  <summary>Preview</summary>
+
+  ![](https://i.imgur.com/Ym6Ajnm.png)
+</details>
 
 ---
 
@@ -80,7 +88,11 @@ MESSAGEMAN:Broadcast("GetScore", {score = params.score})
    * Click the + icon or select "Create a new script" to open a new script editor.
    * Paste the copied script into the editor and save it.
 
-![](https://i.imgur.com/8zgsVxT.png)
+<details>
+  <summary>Preview</summary>
+
+  ![](https://i.imgur.com/8zgsVxT.png)
+</details>
 
 ---
 
