@@ -4,6 +4,7 @@ An Etterna addon that estimates the amount of manip based on replay data, introd
 Follow the instructions below for installation:
 
 ## In-Game Installation:
+⚠️ **Caution: Before editing any files, make sure to create a backup of them. Don't leave the backup files in the same directory.**
 ### Til Death:
 1. Move `manipfactor.lua` to the following directory inside your Etterna game folder:
 > Themes\Til Death\BGAnimations\ScreenEvaluation decorations
