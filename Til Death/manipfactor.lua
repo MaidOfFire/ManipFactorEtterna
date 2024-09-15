@@ -263,7 +263,12 @@ t[#t + 1] = Def.ActorFrame {
         end,
         SetCommand = function(self)
             -- Get replay data
-            local replay = score:GetReplay()
+            local replay
+            if score["GetReplay"] == nil then  -- for better compatibility
+                replay = score 
+            else
+                replay = score:GetReplay()
+            end
             local rate = SCREENMAN:GetTopScreen():GetReplayRate()
             td = GAMESTATE:GetCurrentSteps():GetTimingData()
             dvt = replay:GetOffsetVector()
