@@ -236,9 +236,14 @@ end
 t[#t + 1] = Def.ActorFrame {
     UIElements.TextToolTip(1, 1, "Common Large") .. {
         InitCommand = function(self)
-            self:xy(mfDisplayX + 3, mfDisplayY):halign(0)
-            self:zoom(mfDisplayZoom)
-            self:settext("MF")
+            if aspectRatio < 1.6 then
+                self:xy(mfDisplayX + 3, mfDisplayY):halign(0)
+                self:zoom(mfDisplayZoom)
+                self:settext("MF")
+            else
+                self:xy(mfDisplayX, mfDisplayY):halign(1):zoom(mfDisplayZoom)
+                self:settext("MF:")
+            end
         end,
         MouseOverCommand = function(self)
             self:GetParent():GetChild("ManipFactor"):settextf("L: %2.1f%% R: %2.1f%%", mf[3] * 100, mf[2] * 100)
@@ -250,7 +255,11 @@ t[#t + 1] = Def.ActorFrame {
     UIElements.TextToolTip(1, 1, "Common Large") .. {
         Name = "ManipFactor",
         InitCommand = function(self)
-            self:xy(mfDisplayX, mfDisplayY):halign(1)
+            if aspectRatio < 1.6 then
+                self:xy(mfDisplayX, mfDisplayY):halign(1)
+            else
+                self:xy(mfDisplayX + self:GetParent():GetChild("MFText"):GetWidth(), mfDisplayY):halign(0)
+            end
             self:zoom(mfDisplayZoom)
             self:maxwidth(350)
             self:queuecommand("Set")
