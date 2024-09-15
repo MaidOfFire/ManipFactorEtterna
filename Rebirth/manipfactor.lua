@@ -1,4 +1,4 @@
---Version: 09.15.24 08:00
+--Version: 09.15.24 08:56
 --For Rebirth
 local t = Def.ActorFrame {}
 
@@ -21,14 +21,15 @@ local aspectRatio = GetScreenAspectRatio()
 local mfDisplayX
 local mfDisplayY
 local mfDisplayWidth
+local mfDisplayZoom = 0.95
 
 if aspectRatio < 1.6 then
     mfDisplayX = SCREEN_RIGHT - 88
-    mfDisplayY = SCREEN_BOTTOM - 71
-    mfDisplayWidth = 120
+    mfDisplayY = SCREEN_BOTTOM - 241
+    mfDisplayWidth = 200
 else
-    mfDisplayX = SCREEN_RIGHT - 105
-    mfDisplayY = SCREEN_BOTTOM - 71
+    mfDisplayX = SCREEN_RIGHT - 107
+    mfDisplayY = SCREEN_BOTTOM - 241
     mfDisplayWidth = 250
 end
 
@@ -236,12 +237,12 @@ end
 
 -- Manip factor display
 t[#t + 1] = Def.ActorFrame {
-    UIElements.TextToolTip(1, 1, "Common Normal") .. {
+    UIElements.QuadButton(1, 1) .. {
         InitCommand = function(self)
-            self:xy(mfDisplayX + 3, mfDisplayY)
-            self:halign(0)
-            self:zoom(0.65)
-            self:settext("[MF]")
+            self:xy(mfDisplayX - 35, mfDisplayY - 22)
+            self:halign(0):valign(0)
+            self:zoomto(100,30)
+            self:diffusealpha(0)
         end,
         MouseOverCommand = function(self)
             self:GetParent():GetChild("ManipFactor"):settextf("L: %2.1f%% R: %2.1f%%", mf[3] * 100, mf[2] * 100)
@@ -250,12 +251,20 @@ t[#t + 1] = Def.ActorFrame {
             self:GetParent():GetChild("ManipFactor"):settextf("%2.1f%%", mf[1] * 100)
         end
     },
-    UIElements.TextToolTip(1, 1, "Common Normal") .. {
+    LoadFont("Common Normal") .. {
+        InitCommand = function(self)
+            self:xy(mfDisplayX + 3, mfDisplayY)
+            self:halign(0):valign(1)
+            self:zoom(mfDisplayZoom)
+            self:settext("MF")
+        end
+    },
+    LoadFont("Common Normal") .. {
         Name = "ManipFactor",
         InitCommand = function(self)
             self:xy(mfDisplayX, mfDisplayY)
-            self:zoom(0.65)
-            self:halign(1)
+            self:zoom(mfDisplayZoom)
+            self:halign(1):valign(1)
             self:maxwidth(mfDisplayWidth)
             self:queuecommand("Set")
         end,
@@ -283,12 +292,6 @@ t[#t + 1] = Def.ActorFrame {
             mf = GetManipFactor()
 
             self:diffuse(byMF(mf[1]))
-            self:settextf("%2.1f%%", mf[1] * 100)
-        end,
-        MouseOverCommand = function(self)
-            self:settextf("L: %2.1f%% R: %2.1f%%", mf[3] * 100, mf[2] * 100)
-        end,
-        MouseOutCommand = function(self)
             self:settextf("%2.1f%%", mf[1] * 100)
         end
     }
