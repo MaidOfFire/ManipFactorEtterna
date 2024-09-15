@@ -1,4 +1,4 @@
---Version: 09.15.24 05:45
+--Version: 09.15.24 08:00
 --For Rebirth
 local t = Def.ActorFrame {}
 
@@ -6,8 +6,6 @@ local score = SCOREMAN:GetMostRecentScore()
 if not score then
     score = SCOREMAN:GetTempReplayScore()
 end
-
-local aspectRatio = GetScreenAspectRatio()
 
 local td = {} -- chart timing data
 local dvt = {} -- offset vector
@@ -17,6 +15,22 @@ local wuab = {} -- note timing vector
 local ntt = {} -- note type vector
 
 local mf = {} -- manip factor
+
+local aspectRatio = GetScreenAspectRatio()
+
+local mfDisplayX
+local mfDisplayY
+local mfDisplayWidth
+
+if aspectRatio < 1.6 then
+    mfDisplayX = SCREEN_RIGHT - 88
+    mfDisplayY = SCREEN_BOTTOM - 71
+    mfDisplayWidth = 120
+else
+    mfDisplayX = SCREEN_RIGHT - 105
+    mfDisplayY = SCREEN_BOTTOM - 71
+    mfDisplayWidth = 250
+end
 
 local function FilterTable(low,high,x,eps)
     local y = {}
@@ -222,24 +236,12 @@ end
 
 -- Manip factor display
 t[#t + 1] = Def.ActorFrame {
-    InitCommand = function(self)
-        self:xy(803 / 1920 * SCREEN_WIDTH + 936 / 1920 * SCREEN_WIDTH, 244 / 1080 * SCREEN_HEIGHT)
-        if aspectRatio < 1.6 then
-            self:addx(-250)
-        else 
-            self:addx(-290)
-        end
-        self:addy(79)
-    end,
-    UIElements.TextToolTip(1, 1, "Common Large") .. {
+    UIElements.TextToolTip(1, 1, "Common Normal") .. {
         InitCommand = function(self)
-            self:y(-17 / 1080 * SCREEN_HEIGHT)
+            self:xy(mfDisplayX + 3, mfDisplayY)
             self:halign(0)
-            self:zoom(0.8)
-            self:settext(" MF")
-        end,
-        DiffuseMessageCommand = function(self, params)
-            self:diffuse(byMF(params.mf))
+            self:zoom(0.65)
+            self:settext("[MF]")
         end,
         MouseOverCommand = function(self)
             self:GetParent():GetChild("ManipFactor"):settextf("L: %2.1f%% R: %2.1f%%", mf[3] * 100, mf[2] * 100)
@@ -248,16 +250,13 @@ t[#t + 1] = Def.ActorFrame {
             self:GetParent():GetChild("ManipFactor"):settextf("%2.1f%%", mf[1] * 100)
         end
     },
-    UIElements.TextToolTip(1, 1, "Common Large") .. {
+    UIElements.TextToolTip(1, 1, "Common Normal") .. {
         Name = "ManipFactor",
         InitCommand = function(self)
-            self:y(-17 / 1080 * SCREEN_HEIGHT)
-            self:zoom(0.8)
+            self:xy(mfDisplayX, mfDisplayY)
+            self:zoom(0.65)
             self:halign(1)
-            self:maxwidth(250)
-            if aspectRatio < 1.6 then
-                self:maxwidth(150)
-            end
+            self:maxwidth(mfDisplayWidth)
             self:queuecommand("Set")
         end,
         GetScoreMessageCommand = function(self, params)
@@ -284,7 +283,6 @@ t[#t + 1] = Def.ActorFrame {
             mf = GetManipFactor()
 
             self:diffuse(byMF(mf[1]))
-            MESSAGEMAN:Broadcast("Diffuse", {mf = mf[1]})
             self:settextf("%2.1f%%", mf[1] * 100)
         end,
         MouseOverCommand = function(self)
