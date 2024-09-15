@@ -8,7 +8,7 @@ Follow the instructions below for installation:
 ### Til Death:
 1. Move `manipfactor.lua` to the following directory inside your Etterna game folder:
 > Themes\Til Death\BGAnimations\ScreenEvaluation decorations
-2. Open `default.lua` from the same folder and **before** the line:
+2. Open `default.lua` from the same folder and **before** the last line:
 ```
 return t
 ```
@@ -37,7 +37,7 @@ MESSAGEMAN:Broadcast("GetScore", {score = hsTable[index]})
 ### Rebirth:
 1. Move `manipfactor.lua` to the following directory inside your Etterna game folder:
 >Themes\Rebirth\BGAnimations\ScreenEvaluation decorations
-2. open `mainDisplay.lua` from the same folder and **before** the line:
+2. open `mainDisplay.lua` from the same folder and **before** the last line:
 ```
 return t
 ```
