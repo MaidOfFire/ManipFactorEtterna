@@ -30,6 +30,12 @@ local ntt = {} -- note type vector
 
 local mf = {} -- manip factor
 
+-- Key Data (timing, offset)
+local key0Data
+local key1Data
+local key2Data
+local key3Data
+
 local function FilterTable(low, high, x, eps)
     local y = {}
     for i = 1, #x do
@@ -97,6 +103,20 @@ local function GenerateKeyData(offsetVector, timingVector, trackVector, trackNum
     end
     if #keyData >= 2 then -- Throw out tracks(keys) which have less than 2 notes to avoid nil values
         return keyData
+    else
+        return false
+    end
+end
+
+local function KeyDataForSnapshot(keyData, time)
+    local keyDataS = {}
+    for i = 1, #keyData do
+        if keyData[i][1] <= time then
+            table.insert(keyDataS, keyData[i])
+        end
+    end
+    if #keyDataS >= 2 then -- Throw out tracks(keys) which have less than 2 notes to avoid nil values
+        return keyDataS
     else
         return false
     end
@@ -198,10 +218,10 @@ end
 -- Get manip factor based on key comparisons
 local function GetManipFactor()
     -- Generate data for all keys
-    local key0Data = GenerateKeyData(dvt, wuab, ctt, 0, ntt)
-    local key1Data = GenerateKeyData(dvt, wuab, ctt, 1, ntt)
-    local key2Data = GenerateKeyData(dvt, wuab, ctt, 2, ntt)
-    local key3Data = GenerateKeyData(dvt, wuab, ctt, 3, ntt)
+    key0Data = GenerateKeyData(dvt, wuab, ctt, 0, ntt)
+    key1Data = GenerateKeyData(dvt, wuab, ctt, 1, ntt)
+    key2Data = GenerateKeyData(dvt, wuab, ctt, 2, ntt)
+    key3Data = GenerateKeyData(dvt, wuab, ctt, 3, ntt)
 
     -- Calculate deviations between keys
     local k0to1 = CalculateDeviations(key0Data, key1Data)
@@ -227,6 +247,35 @@ local function GetManipFactor()
     end
 
     return {mftotal, mfright, mfleft}
+end
+
+function GetManipFactorForSnapshot(time)
+    -- Generate data for all keys
+    local key0DataS = KeyDataForSnapshot(key0Data, time)
+    local key1DataS = KeyDataForSnapshot(key1Data, time)
+    local key2DataS = KeyDataForSnapshot(key2Data, time)
+    local key3DataS = KeyDataForSnapshot(key3Data, time)
+
+    -- Calculate deviations between keys
+    local k0to1 = CalculateDeviations(key0DataS, key1DataS)
+    local k1to0 = CalculateDeviations(key1DataS, key0DataS)
+    local k2to3 = CalculateDeviations(key2DataS, key3DataS)
+    local k3to2 = CalculateDeviations(key3DataS, key2DataS)
+
+    -- Calculate the mean manip factors
+    local mfk0to1 = ArithmeticMean(k0to1)
+    local mfk1to0 = ArithmeticMean(k1to0)
+    local mfk2to3 = ArithmeticMean(k2to3)
+    local mfk3to2 = ArithmeticMean(k3to2)
+
+    -- Final manip factor
+    local mftotal = WeightedMean({mfk0to1, mfk1to0, mfk2to3, mfk3to2}, {#k0to1, #k1to0, #k2to3, #k3to2})
+
+    if mftotal ~= mftotal then -- x ~= x means that x == NaN
+        mftotal = 0
+    end
+
+    return mftotal
 end
 
 -- Manip factor display
