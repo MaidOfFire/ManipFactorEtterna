@@ -5,9 +5,16 @@ Follow the instructions below for installation:
 
 ## In-Game Installation:
 ⚠️ **Caution: Before editing any files, make sure to create a backup of them. Don't leave the backup files in the same directory.**
-### Til Death:
+### Til Death and Reimuboobs-theme:
 1. Move `manipfactor.lua` to the following directory inside your Etterna game folder:
 > Themes\Til Death\BGAnimations\ScreenEvaluation decorations
+
+or
+
+> Themes\reimuboobs-theme-main\BGAnimations\ScreenEvaluation decorations
+
+depending on your theme.
+
 2. Open `default.lua` from the same folder and **before** the last line:
 ```
 return t
@@ -31,6 +38,8 @@ MESSAGEMAN:Broadcast("GetScore", {score = hsTable[index]})
 ![](https://i.imgur.com/fJyWtYi.png)
 ---
 ![](https://i.imgur.com/nkgtlSO.png)
+---
+![](https://i.imgur.com/Pt16EJb.png)
 
 ---
 
