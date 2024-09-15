@@ -1,4 +1,4 @@
---Version: 09.15.24 11:22 UTC
+--Version: 09.15.24 15:14
 --For Til Death
 local t = Def.ActorFrame {}
 
@@ -235,13 +235,16 @@ t[#t + 1] = Def.ActorFrame {
     UIElements.TextToolTip(1, 1, "Common Large") .. {
         Name = "MFText",
         InitCommand = function(self)
+            self:xy(mfDisplayX, mfDisplayY)
+            self:zoom(mfDisplayZoom)
             if aspectRatio < 1.6 then
                 -- In aspect ratio less than 1.6, "number% MF"
-                self:xy(mfDisplayX + 3, mfDisplayY):halign(0):zoom(mfDisplayZoom)
+                self:addx(3)
+                self:halign(0)
                 self:settext("MF")
             else
                 -- In aspect ratio greater or equal to 1.6, "MF: number%"
-                self:xy(mfDisplayX, mfDisplayY):halign(1):zoom(mfDisplayZoom)
+                self:halign(1)
                 self:settext("MF:")
             end
         end,
@@ -249,23 +252,22 @@ t[#t + 1] = Def.ActorFrame {
             self:GetParent():GetChild("ManipFactor"):settextf("L: %2.1f%% R: %2.1f%%", mf[3] * 100, mf[2] * 100)
         end,
         MouseOutCommand = function(self)
-            if aspectRatio < 1.6 then
-                self:GetParent():GetChild("ManipFactor"):settextf("%2.1f%%", mf[1] * 100)
-            else
-                self:GetParent():GetChild("ManipFactor"):settextf("%2.1f%%", mf[1] * 100)
-            end
+            self:GetParent():GetChild("ManipFactor"):settextf("%2.1f%%", mf[1] * 100)
         end
     },
     -- Second Text Element (ManipFactor Value)
     UIElements.TextToolTip(1, 1, "Common Large") .. {
         Name = "ManipFactor",
         InitCommand = function(self)
+            self:xy(mfDisplayX, mfDisplayY)
+            self:zoom(mfDisplayZoom)
             if aspectRatio < 1.6 then
                 -- Display "number% MF", move text more to the right
-                self:xy(mfDisplayX, mfDisplayY):halign(1):zoom(mfDisplayZoom)
+                self:halign(1)
             else
                 -- Display "MF: number%"
-                self:xy(mfDisplayX + 3, mfDisplayY):halign(0):zoom(mfDisplayZoom)
+                self:addx(3)
+                self:halign(0)
             end
             self:maxwidth(350)
             self:queuecommand("Set")
