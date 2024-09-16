@@ -102,9 +102,9 @@ This step allows you to display the MF in the offset plot tooltip when you hover
 
 1. Locate the `offsetplot.lua` file in the following directory inside your Etterna game folder:
 
-> Themes\[YourTheme]\BGAnimations
+> Themes\\[Your Theme]\BGAnimations
 
-Replace `[YourTheme]` with your theme's name (e.g., Til Death, Rebirth, etc.).
+Replace `[Your Theme]` with your theme's name (e.g., Til Death, Rebirth, etc.).
 
 2. Open `offsetplot.lua` in a text editor and find the tooltip text block searching for the `marvCount` variable.
 
