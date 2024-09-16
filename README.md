@@ -102,7 +102,7 @@ This step allows you to display the MF in the offset plot tooltip when you hover
 
 1. Locate the `offsetplot.lua` file in the following directory inside your Etterna game folder:
 ```
-Themes\[YourTheme]\BGAnimations\ScreenEvaluation overlay\
+Themes\[YourTheme]\BGAnimations\
 ```
 Replace `[YourTheme]` with your theme's name (e.g., Til Death, Rebirth, etc.).
 
