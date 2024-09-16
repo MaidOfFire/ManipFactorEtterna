@@ -1,4 +1,4 @@
---Version: 09.16.24 13:33
+--Version: 09.16.24 19:34
 --For Reimuboobs-theme
 local t = Def.ActorFrame {}
 
@@ -20,6 +20,12 @@ local ctt = {} -- track vector
 local nrt = {} -- noterow vector
 local wuab = {} -- note timing vector
 local ntt = {} -- note type vector
+
+-- key data
+local key0Data
+local key1Data
+local key2Data
+local key3Data
 
 -- deviations
 local k0to1 = {}
@@ -217,10 +223,10 @@ end
 -- Get manip factor based on key comparisons
 local function GetManipFactor()
     -- Generate data for all keys
-    local key0Data = GenerateKeyData(dvt, wuab, ctt, 0, ntt)
-    local key1Data = GenerateKeyData(dvt, wuab, ctt, 1, ntt)
-    local key2Data = GenerateKeyData(dvt, wuab, ctt, 2, ntt)
-    local key3Data = GenerateKeyData(dvt, wuab, ctt, 3, ntt)
+    key0Data = GenerateKeyData(dvt, wuab, ctt, 0, ntt)
+    key1Data = GenerateKeyData(dvt, wuab, ctt, 1, ntt)
+    key2Data = GenerateKeyData(dvt, wuab, ctt, 2, ntt)
+    key3Data = GenerateKeyData(dvt, wuab, ctt, 3, ntt)
 
     -- Calculate deviations between keys
     k0to1 = CalculateDeviations(key0Data, key1Data)
@@ -228,11 +234,26 @@ local function GetManipFactor()
     k2to3 = CalculateDeviations(key2Data, key3Data)
     k3to2 = CalculateDeviations(key3Data, key2Data)
 
+    local mfk0to1
+    local mfk1to0
+    local mfk2to3
+    local mfk3to2
+
     -- Calculate the mean manip factors
-    local mfk0to1 = ArithmeticMeanForDeviatons(k0to1)
-    local mfk1to0 = ArithmeticMeanForDeviatons(k1to0)
-    local mfk2to3 = ArithmeticMeanForDeviatons(k2to3)
-    local mfk3to2 = ArithmeticMeanForDeviatons(k3to2)
+    if key0Data ~= false and key1Data ~= false then
+        mfk0to1 = ArithmeticMeanForDeviatons(k0to1)
+        mfk1to0 = ArithmeticMeanForDeviatons(k1to0)
+    else
+        mfk0to1 = 0
+        mfk1to0 = 0
+    end
+    if key2Data ~= false and key3Data ~= false then
+        mfk2to3 = ArithmeticMeanForDeviatons(k2to3)
+        mfk3to2 = ArithmeticMeanForDeviatons(k3to2)
+    else
+        mfk2to3 = 0
+        mfk3to2 = 0
+    end
 
     -- Final manip factor
     local mftotal = WeightedMean({mfk0to1, mfk1to0, mfk2to3, mfk3to2}, {#k0to1, #k1to0, #k2to3, #k3to2})
@@ -250,16 +271,40 @@ end
 
 -- Get manip factor based on key comparisons and row time
 function GetManipFactorForRow(time)
-    local tk0to1 = FilterTableByTime(k0to1, time)
-    local tk1to0 = FilterTableByTime(k1to0, time)
-    local tk2to3 = FilterTableByTime(k2to3, time)
-    local tk3to2 = FilterTableByTime(k3to2, time)
+    local tk0to1 = {}
+    local tk1to0 = {}
+    local tk2to3 = {}
+    local tk3to2 = {}
+
+    if key0Data ~= false and key1Data ~= false then
+        tk0to1 = FilterTableByTime(k0to1, time)
+        tk1to0 = FilterTableByTime(k1to0, time)
+    end
+    if key2Data ~= false and key3Data ~= false then
+        tk2to3 = FilterTableByTime(k2to3, time)
+        tk3to2 = FilterTableByTime(k3to2, time)
+    end
+
+    local mfk0to1
+    local mfk1to0
+    local mfk2to3
+    local mfk3to2
 
     -- Calculate the mean manip factors
-    local mfk0to1 = ArithmeticMeanForDeviatons(tk0to1)
-    local mfk1to0 = ArithmeticMeanForDeviatons(tk1to0)
-    local mfk2to3 = ArithmeticMeanForDeviatons(tk2to3)
-    local mfk3to2 = ArithmeticMeanForDeviatons(tk3to2)
+    if key0Data ~= false and key1Data ~= false then
+        mfk0to1 = ArithmeticMeanForDeviatons(tk0to1)
+        mfk1to0 = ArithmeticMeanForDeviatons(tk1to0)
+    else
+        mfk0to1 = 0
+        mfk1to0 = 0
+    end
+    if key2Data ~= false and key3Data ~= false then
+        mfk2to3 = ArithmeticMeanForDeviatons(tk2to3)
+        mfk3to2 = ArithmeticMeanForDeviatons(tk3to2)
+    else
+        mfk2to3 = 0
+        mfk3to2 = 0
+    end
 
     -- Final manip factor
     local mftotal = WeightedMean({mfk0to1, mfk1to0, mfk2to3, mfk3to2}, {#tk0to1, #tk1to0, #tk2to3, #tk3to2})
