@@ -40,9 +40,9 @@ MESSAGEMAN:Broadcast("GetScore", {score = hsTable[index]})
 <details>
   <summary>Preview</summary>
   
-  ![](images/Til_Death/td_prev)
+  ![](images/Til_Death/td_prev.png)
   ---
-  ![](images/Til_Death/tdrb_prev)
+  ![](images/Til_Death/tdrb_prev.png)
 </details>
 
 ---
