@@ -1,4 +1,4 @@
---Version: 09.15.24 10:38
+--Version: 09.16.24 13:33
 --For Reimuboobs-theme
 local t = Def.ActorFrame {}
 
@@ -6,8 +6,6 @@ local score = SCOREMAN:GetMostRecentScore()
 if not score then
     score = SCOREMAN:GetTempReplayScore()
 end
-
-local aspectRatio = GetScreenAspectRatio()
 
 local mfDisplayX
 local mfDisplayY
@@ -23,19 +21,37 @@ local nrt = {} -- noterow vector
 local wuab = {} -- note timing vector
 local ntt = {} -- note type vector
 
+-- deviations
+local k0to1 = {}
+local k1to0 = {}
+local k2to3 = {}
+local k3to2 = {}
+
 local mf = {} -- manip factor
 
-local function FilterTable(low,high,x,eps)
+-- filter table by percentiles
+local function FilterTable(low, high, x, eps)
     local y = {}
     for i = 1, #x do
         if x[i] > (low - eps) and x[i] < (high + eps) and x[i] ~= 0 then
-            y[#y + 1] = x[i]
+            table.insert(y, x[i])
         end
     end
     return y
 end
- 
---Helper function to calculate Arithmetic Mean
+
+-- filter deviations table by time
+local function FilterTableByTime(x, time)
+    local y = {}
+    for i = 1, #x do
+        if x[i][1] <= time then
+            table.insert(y, x[i])
+        end
+    end
+    return y
+end
+
+-- Helper function to calculate Arithmetic Mean
 local function ArithmeticMean(x)
     local sum = 0
     for i = 1, #x do
@@ -43,8 +59,16 @@ local function ArithmeticMean(x)
     end
     return sum / #x
 end
- 
---Helper function to calculate Weighted Mean
+
+local function ArithmeticMeanForDeviatons(x)
+    local sum = 0
+    for i = 1, #x do
+        sum = sum + x[i][2]
+    end
+    return sum / #x
+end
+
+-- Helper function to calculate Weighted Mean
 local function WeightedMean(x, w)
     local sump = 0
     local sum = 0
@@ -61,7 +85,7 @@ local function Percentile(sortedArray, p)
     local lowerBound = math.floor(index)
     local upperBound = math.ceil(index)
     local fracPart = index - lowerBound
-    
+
     if fracPart == 0 then
         return sortedArray[lowerBound]
     else
@@ -69,17 +93,16 @@ local function Percentile(sortedArray, p)
     end
 end
 
---mf value to hsv color
-local function byMF(x) 
-    if x > 0.4 then 
-        x = 0.4 
+-- mf value to hsv color
+local function byMF(x)
+    if x > 0.4 then
+        x = 0.4
     end
     -- Calculate the hue from 0 (green) to 0.4 (red)
-    local hue
-    hue = 120 - (x * 300) -- 120 to 0 degrees
+    local hue = 120 - (x * 300) -- 120 to 0 degrees
     local saturation = 0.9 -- Full saturation
     local brightness = 0.9 -- Full brightness
- 
+
     return HSV(hue, saturation, brightness)
 end
 
@@ -91,7 +114,7 @@ local function GenerateKeyData(offsetVector, timingVector, trackVector, trackNum
             table.insert(keyData, {timingVector[i], offsetVector[i]})
         end
     end
-    if #keyData >= 2 then -- Throw out tracks(keys) wich have less then 2 notes to avoid nil values
+    if #keyData >= 2 then -- Throw out tracks(keys) which have less than 2 notes to avoid nil values
         return keyData
     else
         return false
@@ -101,7 +124,7 @@ end
 -- Function to calculate deviations
 local function CalculateDeviations(keyAData, keyBData)
     if keyAData and keyBData then
-        local eps = 0.1 
+        local eps = 0.1
         local deviations = {}
 
         -- Extract time values from key data
@@ -144,10 +167,8 @@ local function CalculateDeviations(keyAData, keyBData)
         local upperPercentileB = Percentile(diffB, 95)
 
         -- Filter differences outside the 5th and 95th percentiles
-        local filteredDiffA = {}
-        local filteredDiffB = {}
-        filteredDiffA = FilterTable(lowerPercentileA, upperPercentileA, diffA, eps)
-        filteredDiffB = FilterTable(lowerPercentileB, upperPercentileB, diffB, eps)
+        local filteredDiffA = FilterTable(lowerPercentileA, upperPercentileA, diffA, eps)
+        local filteredDiffB = FilterTable(lowerPercentileB, upperPercentileB, diffB, eps)
 
         -- Calculate arithmetic mean of filtered differences for A and B columns
         local k0AvgInterval = ArithmeticMean(filteredDiffA)
@@ -157,32 +178,32 @@ local function CalculateDeviations(keyAData, keyBData)
         local avgInterval = (k0AvgInterval + k1AvgInterval) / 2
         -- Halve the interval (for trills)
         avgInterval = avgInterval / 2
-        
-        table.sort(keyAData, function(a,b) return a[1] < b[1] end)
-        table.sort(keyBData, function(a,b) return a[1] < b[1] end)
+
+        table.sort(keyAData, function(a, b) return a[1] < b[1] end)
+        table.sort(keyBData, function(a, b) return a[1] < b[1] end)
         -- Calculate deviations
         local finder = 1
         for i = 1, #keyAData do
             local timeA, errorA = keyAData[i][1], keyAData[i][2]
-            
+
             -- Find the closest previous note in keyBData
             local lastKeyBItem
             for j = finder, #keyBData do
-                if keyBData[j][1] < (timeA-eps) then
+                if keyBData[j][1] < (timeA - eps) then
                     lastKeyBItem = keyBData[j]
                     finder = j
                 else
                     break
                 end
             end
-            
-            --add deviations if conditions are met
+
+            -- Add deviations if conditions are met
             if lastKeyBItem then
                 local errorB = lastKeyBItem[2]
                 local deviation = (errorB - errorA) / avgInterval
                 local absDeviation = math.abs(deviation)
                 if absDeviation <= 1.5 then
-                    table.insert(deviations, absDeviation)
+                    table.insert(deviations, {timeA, absDeviation})
                 end
             end
         end
@@ -200,23 +221,23 @@ local function GetManipFactor()
     local key1Data = GenerateKeyData(dvt, wuab, ctt, 1, ntt)
     local key2Data = GenerateKeyData(dvt, wuab, ctt, 2, ntt)
     local key3Data = GenerateKeyData(dvt, wuab, ctt, 3, ntt)
-	
+
     -- Calculate deviations between keys
-    local k0to1 = CalculateDeviations(key0Data, key1Data)
-    local k1to0 = CalculateDeviations(key1Data, key0Data)
-    local k2to3 = CalculateDeviations(key2Data, key3Data)
-    local k3to2 = CalculateDeviations(key3Data, key2Data)
+    k0to1 = CalculateDeviations(key0Data, key1Data)
+    k1to0 = CalculateDeviations(key1Data, key0Data)
+    k2to3 = CalculateDeviations(key2Data, key3Data)
+    k3to2 = CalculateDeviations(key3Data, key2Data)
 
     -- Calculate the mean manip factors
-    local mfk0to1 = ArithmeticMean(k0to1)
-    local mfk1to0 = ArithmeticMean(k1to0)
-    local mfk2to3 = ArithmeticMean(k2to3)
-    local mfk3to2 = ArithmeticMean(k3to2)
-	
+    local mfk0to1 = ArithmeticMeanForDeviatons(k0to1)
+    local mfk1to0 = ArithmeticMeanForDeviatons(k1to0)
+    local mfk2to3 = ArithmeticMeanForDeviatons(k2to3)
+    local mfk3to2 = ArithmeticMeanForDeviatons(k3to2)
+
     -- Final manip factor
     local mftotal = WeightedMean({mfk0to1, mfk1to0, mfk2to3, mfk3to2}, {#k0to1, #k1to0, #k2to3, #k3to2})
 
-    --Right/Left mf
+    -- Right/Left mf
     local mfleft = WeightedMean({mfk0to1, mfk1to0}, {#k0to1, #k1to0})
     local mfright = WeightedMean({mfk2to3, mfk3to2}, {#k2to3, #k3to2})
 
@@ -224,7 +245,30 @@ local function GetManipFactor()
         mftotal, mfleft, mfright = 0, 0, 0
     end
 
-    return {mftotal, mfright, mfleft}
+    return {mftotal, mfleft, mfright}
+end
+
+-- Get manip factor based on key comparisons and row time
+function GetManipFactorForRow(time)
+    local tk0to1 = FilterTableByTime(k0to1, time)
+    local tk1to0 = FilterTableByTime(k1to0, time)
+    local tk2to3 = FilterTableByTime(k2to3, time)
+    local tk3to2 = FilterTableByTime(k3to2, time)
+
+    -- Calculate the mean manip factors
+    local mfk0to1 = ArithmeticMeanForDeviatons(tk0to1)
+    local mfk1to0 = ArithmeticMeanForDeviatons(tk1to0)
+    local mfk2to3 = ArithmeticMeanForDeviatons(tk2to3)
+    local mfk3to2 = ArithmeticMeanForDeviatons(tk3to2)
+
+    -- Final manip factor
+    local mftotal = WeightedMean({mfk0to1, mfk1to0, mfk2to3, mfk3to2}, {#tk0to1, #tk1to0, #tk2to3, #tk3to2})
+
+    if mftotal ~= mftotal then -- x ~= x means that x == NaN
+        mftotal = 0
+    end
+
+    return mftotal
 end
 
 -- Manip factor display
@@ -236,7 +280,7 @@ t[#t + 1] = Def.ActorFrame {
             self:settext("MF")
         end,
         MouseOverCommand = function(self)
-            self:GetParent():GetChild("ManipFactor"):settextf("L: %2.1f%% R: %2.1f%%", mf[3] * 100, mf[2] * 100)
+            self:GetParent():GetChild("ManipFactor"):settextf("(L: %2.1f%% R: %2.1f%%) %2.1f%%", mf[2] * 100, mf[3] * 100, mf[1] * 100)
         end,
         MouseOutCommand = function(self)
             self:GetParent():GetChild("ManipFactor"):settextf("%2.1f%%", mf[1] * 100)
@@ -247,7 +291,6 @@ t[#t + 1] = Def.ActorFrame {
         InitCommand = function(self)
             self:xy(mfDisplayX, mfDisplayY):halign(1)
             self:zoom(mfDisplayZoom)
-            self:maxwidth(350)
             self:queuecommand("Set")
         end,
         GetScoreMessageCommand = function(self, params)
@@ -260,7 +303,7 @@ t[#t + 1] = Def.ActorFrame {
             -- Get replay data
             local replay
             if score["GetReplay"] == nil then  -- for better compatibility
-                replay = score 
+                replay = score
             else
                 replay = score:GetReplay()
             end
@@ -282,7 +325,7 @@ t[#t + 1] = Def.ActorFrame {
             self:settextf("%2.1f%%", mf[1] * 100)
         end,
         MouseOverCommand = function(self)
-            self:settextf("L: %2.1f%% R: %2.1f%%", mf[3] * 100, mf[2] * 100)
+            self:settextf("(L: %2.1f%% R: %2.1f%%) %2.1f%%", mf[2] * 100, mf[3] * 100, mf[1] * 100)
         end,
         MouseOutCommand = function(self)
             self:settextf("%2.1f%%", mf[1] * 100)
