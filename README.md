@@ -80,23 +80,31 @@ MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 
 ---
 
-### Adding MF To OffsetPlot (Optional):
-This is relevant for all themes.
-1. Locate `offsetplot.lua` in the following directory inside your Etterna game folder:
->Themes\X\BGAnimations\
-2. Find the block of code that is responsible for making text for tooltip, this can easily be done by lookibg for `marvCount` variable.
-3. Add the following line AFTER the declaration of `row` variable (on screenshot marked as red `!`):
+### Adding MF to Offset Plot (Optional):
+
+This step allows you to display the MF in the offset plot tooltip when you hover over the accuracy graph. It's applicable to all themes.
+
+1. Locate the `offsetplot.lua` file in the following directory inside your Etterna game folder:
+```
+Themes\[YourTheme]\BGAnimations\ScreenEvaluation overlay\
+```
+Replace `[YourTheme]` with your theme's name (e.g., Til Death, Rebirth, etc.).
+
+2. Open `offsetplot.lua` in a text editor and find the tooltip text block searching for the `marvCount` variable.
+
+3. Add the following line AFTER the declaration of the `row` variable (in the screenshot, it's marked with a red `!`):
 ```
 local mf = GetManipFactorForRow(td:GetElapsedTimeFromNoteRow(row) / getCurRateValue() * 1000) * 100
 ```
-4. Add the following text in a `settextf` function (in Rebirth its called `string.format`) after the last `\n`:
+4. Add the following text in the `settextf` function (in Rebirth its called `string.format`) after the last `\n`:
 ```
 %s: %2.1f%%\n
 ```
-5. Add the following line right before `time` variable is passed to the `settextf` function:
+5. Add the following line right before the `time` variable is passed to the `settextf` function:
 ```
 "MF", mf,
 ```
+
 ![](images/Other/offsetplot.png)
 
 ---
