@@ -101,9 +101,9 @@ MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 This step allows you to display the MF in the offset plot tooltip when you hover over the accuracy graph. It's applicable to all themes.
 
 1. Locate the `offsetplot.lua` file in the following directory inside your Etterna game folder:
-```
-Themes\[YourTheme]\BGAnimations\
-```
+
+> Themes\[YourTheme]\BGAnimations
+
 Replace `[YourTheme]` with your theme's name (e.g., Til Death, Rebirth, etc.).
 
 2. Open `offsetplot.lua` in a text editor and find the tooltip text block searching for the `marvCount` variable.
