@@ -1,7 +1,23 @@
 # ManipFactor Etterna
-An Etterna addon that estimates the amount of manip based on replay data, introducing a new metric for play accuracy. Offers both an In-Game version and a browser-based version for EtternaOnline. Hover the cursor to see left and right hands separately.
+An Etterna addon that estimates the amount of manip based on replay data, introducing a new metric for play accuracy. Offers both a browser-based version for EtternaOnline and an In-Game version. Hover the cursor to see left and right hands separately.
 
 Follow the instructions below for installation:
+
+## EtternaOnline Installation:
+1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension.
+2. Copy the script from this repository: [manipfactor.etternaonline.js](https://raw.githubusercontent.com/MaidOfFire/ManipFactorEtterna/main/manipfactor.etternaonline.js).
+3. Paste the script to Tampermonkey:
+   * Click on the Tampermonkey icon in your browser's toolbar.
+   * Click the + icon or select "Create a new script" to open a new script editor.
+   * Paste the copied script into the editor and save it.
+
+<details>
+  <summary>Preview</summary>
+
+  ![](images/Tampermonkey/tm_prev.png)
+</details>
+
+---
 
 ## In-Game Installation:
 ⚠️ **Caution: Before editing any files, make sure to create a backup of them. Don't leave the backup files in the same directory.**
@@ -107,20 +123,10 @@ local mf = GetManipFactorForRow(td:GetElapsedTimeFromNoteRow(row) / getCurRateVa
 
 ![](images/Other/offsetplot.png)
 
----
-
-## EtternaOnline Installation:
-1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension.
-2. Copy the script from this repository: [manipfactor.etternaonline.js](https://raw.githubusercontent.com/MaidOfFire/ManipFactorEtterna/main/manipfactor.etternaonline.js).
-3. Paste the script to Tampermonkey:
-   * Click on the Tampermonkey icon in your browser's toolbar.
-   * Click the + icon or select "Create a new script" to open a new script editor.
-   * Paste the copied script into the editor and save it.
-
 <details>
   <summary>Preview</summary>
-
-  ![](images/Tampermonkey/tm_prev.png)
+  
+  ![](images/Other/offsetplot_prev.png)
 </details>
 
 ---
