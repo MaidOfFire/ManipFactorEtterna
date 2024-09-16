@@ -24,7 +24,7 @@ add the following line:
 t[#t + 1] = LoadActor("manipfactor")
 ```
 
-![](https://i.imgur.com/l4HDRUo.png)
+![](images/Til_Death/td_load_mf.png)
 
 3. Open `scoreboard.lua` from the same folder and **after the second occurrence** of the line:
 ```
@@ -35,14 +35,14 @@ add the following line:
 MESSAGEMAN:Broadcast("GetScore", {score = hsTable[index]})
 ```
 
-![](https://i.imgur.com/fJyWtYi.png)
+![](images/Til_Death/td_add_getscore.png)
 
 <details>
   <summary>Preview</summary>
   
-  ![](https://i.imgur.com/nkgtlSO.png)
+  ![](images/Til_Death/td_prev.png)
   ---
-  ![](https://i.imgur.com/Pt16EJb.png)
+  ![](images/Til_Death/tdrb_prev.png)
 </details>
 
 ---
@@ -59,7 +59,7 @@ add the following line:
 t[#t + 1] = LoadActor("manipfactor")
 ```
 
-![](https://i.imgur.com/YxsxjK6.png)
+![](images/Rebirth/rb_load_mf.png)
 
 3. In the same file, find the block of code that starts with:
 ```
@@ -70,12 +70,12 @@ and above the `end,` line, add the following line:
 MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 ```
 
-![](https://i.imgur.com/Wb4Qk6i.png)
+![](images/Rebirth/rb_add_getscore.png)
 
 <details>
   <summary>Preview</summary>
 
-  ![](https://i.imgur.com/Ym6Ajnm.png)
+  ![](images/Rebirth/rb_prev.png)
 </details>
 
 ---
@@ -91,7 +91,7 @@ MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 <details>
   <summary>Preview</summary>
 
-  ![](https://i.imgur.com/8zgsVxT.png)
+  ![](images/Tampermonkey/tm_prev.png)
 </details>
 
 ---
