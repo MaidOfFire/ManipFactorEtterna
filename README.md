@@ -80,6 +80,27 @@ MESSAGEMAN:Broadcast("GetScore", {score = params.score})
 
 ---
 
+### Adding MF To OffsetPlot (Optional):
+This is relevant for all themes.
+1. Locate `offsetplot.lua` in the following directory inside your Etterna game folder:
+>Themes\X\BGAnimations\
+2. Find the block of code that is responsible for making text for tooltip, this can easily be done by lookibg for `marvCount` variable.
+3. Add the following line AFTER the declaration of `row` variable (on screenshot marked as red `!`):
+```
+local mf = GetManipFactorForRow(td:GetElapsedTimeFromNoteRow(row) / getCurRateValue() * 1000) * 100
+```
+4. Add the following text in a `settextf` function (in Rebirth its called `string.format`) after the last `\n`:
+```
+%s: %2.1f%%\n
+```
+5. Add the following line right before `time` variable is passed to the `settextf` function:
+```
+"MF", mf,
+```
+![](images/Other/offsetplot.png)
+
+---
+
 ## EtternaOnline Installation:
 1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension.
 2. Copy the script from this repository: [manipfactor.etternaonline.js](https://raw.githubusercontent.com/MaidOfFire/ManipFactorEtterna/main/manipfactor.etternaonline.js).
