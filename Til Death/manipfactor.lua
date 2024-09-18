@@ -408,12 +408,11 @@ end
 
 -- Get manip factor based on key comparisons and row time
 function GetManipFactorForRow(time)
-    local timedDeviations = FilterTableByTime(deviations, time)
     local mfs = {}
     local mfsw = {}
 
-    for i = 1, #timedDeviations do
-        table.insert(mfs, ArithmeticMeanForTimedDeviatons(timedDeviations))
+    for i = 1, #deviations do
+        table.insert(mfs, ArithmeticMeanForTimedDeviatons(FilterTableByTime(deviations, time)))
     end
 
     for i = 1, #mfs do
