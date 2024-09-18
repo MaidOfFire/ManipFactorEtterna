@@ -29,16 +29,10 @@ local wuab = {} -- note timing vector
 local ntt = {} -- note type vector
 
 -- key data
-local key0Data
-local key1Data
-local key2Data
-local key3Data
+local keyData
 
--- deviations
-local k0to1 = {}
-local k1to0 = {}
-local k2to3 = {}
-local k3to2 = {}
+-- deviations for total mf
+local deviations = {}
 
 local mf = {} -- manip factor
 
@@ -57,8 +51,10 @@ end
 local function FilterTableByTime(x, time)
     local y = {}
     for i = 1, #x do
-        if x[i][1] <= time then
-            table.insert(y, x[i])
+        for k = 1, #x[i] do
+            if x[i][k][1] <= time then
+                table.insert(y, x[i][k])
+            end
         end
     end
     return y
@@ -75,10 +71,24 @@ end
 
 local function ArithmeticMeanForDeviatons(x)
     local sum = 0
+    local count = 0
+    for i = 1, #x do
+        for k = 1, #x[i] do
+            sum = sum + x[i][k][2]
+            count = count + 1
+        end
+    end
+    return sum / count
+end
+
+local function ArithmeticMeanForTimedDeviatons(x)
+    local sum = 0
+    local count = 0
     for i = 1, #x do
         sum = sum + x[i][2]
+        count = count + 1
     end
-    return sum / #x
+    return sum / count
 end
 
 -- Helper function to calculate Weighted Mean
@@ -119,19 +129,106 @@ local function byMF(x)
     return HSV(hue, saturation, brightness)
 end
 
--- Generate key data
-local function GenerateKeyData(offsetVector, timingVector, trackVector, trackNum, tntypeVector)
-    local keyData = {}
-    for i = 1, #offsetVector do
-        if trackVector[i] == trackNum and tntypeVector[i] ~= "TapNoteType_Mine" and tntypeVector[i] ~= "TapNoteType_HoldTail" then
-            table.insert(keyData, {timingVector[i], offsetVector[i]})
+local function GetMaxTrack() -- copied from 00 Utility.lua
+	local keys = {
+		StepsType_Dance_Threepanel = 3,
+		StepsType_Dance_Single = 4,
+		StepsType_Pump_Single = 5,
+		StepsType_Pnm_Five = 5,
+		StepsType_Pump_Halfdouble = 6,
+		StepsType_Bm_Single5 = 6,
+		StepsType_Dance_Solo = 6,
+		StepsType_Kb7_Single = 7,
+		StepsType_Bm_Single7 = 8,
+		StepsType_Dance_Double = 8,
+		StepsType_Pnm_Nine = 9,
+		StepsType_Pump_Double = 10,
+		StepsType_Bm_Double5 = 12,
+		StepsType_Bm_Double7 = 16,
+	}
+	local stepstype = GAMESTATE:GetCurrentSteps():GetStepsType()
+	return keys[stepstype]
+end
+
+-- im sorry
+local function FindKeyPairs(keymode)
+    local keyPairs = {}
+    for i = 0, keymode - 1 do
+        if keymode % 2 == 0 then
+            if i == 0 then
+                for j = 1, keymode / 2 - 1 do
+                    table.insert(keyPairs, {math.floor(i), math.floor(j)})
+                end
+            elseif i == keymode - 1 then
+                for j = keymode - 2, keymode / 2, -1 do
+                    table.insert(keyPairs, {math.floor(i), math.floor(j)})
+                end
+            elseif i <= keymode / 2 - 1 then
+                for j = 0, keymode / 2 - 1 do
+                    if i ~= j then
+                        table.insert(keyPairs, {math.floor(i), math.floor(j)})
+                    end
+                end
+            elseif i > keymode / 2 - 1 then
+                for j = keymode / 2, keymode - 1  do
+                    if i ~= j then
+                        table.insert(keyPairs, {math.floor(i), math.floor(j)})
+                    end
+                end
+            end
+        else
+            if i == 0 then
+                for j = 1, keymode / 2 - 1.5 do
+                    table.insert(keyPairs, {math.floor(i), math.floor(j)})
+                end
+            elseif i == keymode / 2 - 0.5 then
+            elseif i == keymode - 1 then
+                for j = keymode - 2, keymode / 2 + 0.5, -1 do
+                    table.insert(keyPairs, {math.floor(i), math.floor(j)})
+                end
+            elseif i <= keymode / 2 - 1.5 then
+                for j = 0, keymode / 2 - 1.5 do
+                    if i ~= j then
+                        table.insert(keyPairs, {math.floor(i), math.floor(j)})
+                    end
+                end
+            elseif i > keymode / 2 - 1.5 then
+                for j = keymode / 2 + 0.5, keymode - 1  do
+                    if i ~= j then
+                        table.insert(keyPairs, {math.floor(i), math.floor(j)})
+                    end
+                end
+            end
         end
     end
-    if #keyData >= 2 then -- Throw out tracks(keys) which have less than 2 notes to avoid nil values
-        return keyData
+    return keyPairs
+end
+
+local function LeftOrRirght(track, keymode)
+    if keymode % 2 == 0 then
+        if track <= keymode / 2 - 1  then
+            return  "left"
+        else
+            return "right"
+        end
     else
-        return false
+        if track <= keymode / 2 - 1.5 then
+            return  "left"
+        else
+            return "right"
+        end
     end
+end
+
+-- Generate key data
+local function GenerateKeyData(offsetVector, timingVector, trackVector, tntypeVector)
+    local keyData = {}
+    for i = 1, #offsetVector do
+        if tntypeVector[i] ~= "TapNoteType_Mine" and tntypeVector[i] ~= "TapNoteType_HoldTail" then
+            table.insert(keyData, {timingVector[i], offsetVector[i], trackVector[i]})
+        end
+    end
+    return keyData
 end
 
 -- Function to calculate deviations
@@ -197,7 +294,7 @@ local function CalculateDeviations(keyAData, keyBData)
         -- Calculate deviations
         local finder = 1
         for i = 1, #keyAData do
-            local timeA, errorA = keyAData[i][1], keyAData[i][2]
+            local timeA, errorA, trackA = keyAData[i][1], keyAData[i][2], keyAData[i][3]
 
             -- Find the closest previous note in keyBData
             local lastKeyBItem
@@ -230,44 +327,77 @@ end
 -- Get manip factor based on key comparisons
 local function GetManipFactor()
     -- Generate data for all keys
-    key0Data = GenerateKeyData(dvt, wuab, ctt, 0, ntt)
-    key1Data = GenerateKeyData(dvt, wuab, ctt, 1, ntt)
-    key2Data = GenerateKeyData(dvt, wuab, ctt, 2, ntt)
-    key3Data = GenerateKeyData(dvt, wuab, ctt, 3, ntt)
+    keyData = GenerateKeyData(dvt, wuab, ctt, ntt)
 
-    -- Calculate deviations between keys
-    k0to1 = CalculateDeviations(key0Data, key1Data)
-    k1to0 = CalculateDeviations(key1Data, key0Data)
-    k2to3 = CalculateDeviations(key2Data, key3Data)
-    k3to2 = CalculateDeviations(key3Data, key2Data)
+    -- get key mode and all possible key pairs excluding middle key for keymods with odd keycount
+    local keymode = GetMaxTrack()
+    local keyPairs = FindKeyPairs(keymode)
 
-    local mfk0to1
-    local mfk1to0
-    local mfk2to3
-    local mfk3to2
+    deviations = {}
+    local mfs = {}
+    local mfsw = {}
 
-    -- Calculate the mean manip factors
-    if key0Data ~= false and key1Data ~= false then
-        mfk0to1 = ArithmeticMeanForDeviatons(k0to1)
-        mfk1to0 = ArithmeticMeanForDeviatons(k1to0)
-    else
-        mfk0to1 = 0
-        mfk1to0 = 0
+    local ldeviations = {}
+    local lmfs = {}
+    local lmfsw = {}
+
+    local rdeviations = {}
+    local rmfs = {}
+    local rmfsw = {}
+
+    for i = 1, #keyPairs do
+        local keyAData = {}
+        local keyBData = {}
+        local hand = LeftOrRirght(keyPairs[i][1], keymode)
+        for j = 1, #keyData do
+            if keyPairs[i][1] == keyData[j][3] then
+                table.insert(keyAData, keyData[j])
+            end
+            if keyPairs[i][2] == keyData[j][3] then
+                table.insert(keyBData, keyData[j])
+            end
+        end
+        if #keyAData >= 2 and #keyBData >= 2 then
+            local deviation = CalculateDeviations(keyAData, keyBData)
+            table.insert(deviations, deviation)
+            if hand == "left" then
+                table.insert(ldeviations, deviation)
+            else
+                table.insert(rdeviations, deviation)
+            end
+        end
     end
-    if key2Data ~= false and key3Data ~= false then
-        mfk2to3 = ArithmeticMeanForDeviatons(k2to3)
-        mfk3to2 = ArithmeticMeanForDeviatons(k3to2)
-    else
-        mfk2to3 = 0
-        mfk3to2 = 0
+
+    for i = 1, #deviations do
+        table.insert(mfs, ArithmeticMeanForDeviatons(deviations))
+    end
+
+    for i = 1, #ldeviations do
+        table.insert(lmfs, ArithmeticMeanForDeviatons(ldeviations))
+    end
+
+    for i = 1, #rdeviations do
+        table.insert(rmfs, ArithmeticMeanForDeviatons(rdeviations))
+    end
+
+    for i = 1, #mfs do
+        table.insert(mfsw, #mfs)
+    end
+
+    for i = 1, #lmfs do
+        table.insert(lmfsw, #lmfs)
+    end
+
+    for i = 1, #rmfs do
+        table.insert(rmfsw, #rmfs)
     end
 
     -- Final manip factor
-    local mftotal = WeightedMean({mfk0to1, mfk1to0, mfk2to3, mfk3to2}, {#k0to1, #k1to0, #k2to3, #k3to2})
+    local mftotal = WeightedMean(mfs, mfsw)
 
-    -- Right/Left mf
-    local mfleft = WeightedMean({mfk0to1, mfk1to0}, {#k0to1, #k1to0})
-    local mfright = WeightedMean({mfk2to3, mfk3to2}, {#k2to3, #k3to2})
+    -- left/right mf
+    local mfleft = WeightedMean(lmfs, lmfsw)
+    local mfright = WeightedMean(rmfs, rmfsw)
 
     if mftotal ~= mftotal then -- x ~= x means that x == NaN
         mftotal, mfleft, mfright = 0, 0, 0
@@ -278,43 +408,19 @@ end
 
 -- Get manip factor based on key comparisons and row time
 function GetManipFactorForRow(time)
-    local tk0to1 = {}
-    local tk1to0 = {}
-    local tk2to3 = {}
-    local tk3to2 = {}
+    local timedDeviations = FilterTableByTime(deviations, time)
+    local mfs = {}
+    local mfsw = {}
 
-    if key0Data ~= false and key1Data ~= false then
-        tk0to1 = FilterTableByTime(k0to1, time)
-        tk1to0 = FilterTableByTime(k1to0, time)
-    end
-    if key2Data ~= false and key3Data ~= false then
-        tk2to3 = FilterTableByTime(k2to3, time)
-        tk3to2 = FilterTableByTime(k3to2, time)
+    for i = 1, #timedDeviations do
+        table.insert(mfs, ArithmeticMeanForTimedDeviatons(timedDeviations))
     end
 
-    local mfk0to1
-    local mfk1to0
-    local mfk2to3
-    local mfk3to2
-
-    -- Calculate the mean manip factors
-    if key0Data ~= false and key1Data ~= false then
-        mfk0to1 = ArithmeticMeanForDeviatons(tk0to1)
-        mfk1to0 = ArithmeticMeanForDeviatons(tk1to0)
-    else
-        mfk0to1 = 0
-        mfk1to0 = 0
-    end
-    if key2Data ~= false and key3Data ~= false then
-        mfk2to3 = ArithmeticMeanForDeviatons(tk2to3)
-        mfk3to2 = ArithmeticMeanForDeviatons(tk3to2)
-    else
-        mfk2to3 = 0
-        mfk3to2 = 0
+    for i = 1, #mfs do
+        table.insert(mfsw, #mfs)
     end
 
-    -- Final manip factor
-    local mftotal = WeightedMean({mfk0to1, mfk1to0, mfk2to3, mfk3to2}, {#tk0to1, #tk1to0, #tk2to3, #tk3to2})
+    local mftotal = WeightedMean(mfs, mfsw)
 
     if mftotal ~= mftotal then -- x ~= x means that x == NaN
         mftotal = 0
