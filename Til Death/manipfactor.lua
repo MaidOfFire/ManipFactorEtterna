@@ -73,10 +73,8 @@ local function ArithmeticMeanForDeviatons(x)
     local sum = 0
     local count = 0
     for i = 1, #x do
-        for k = 1, #x[i] do
-            sum = sum + x[i][k][2]
-            count = count + 1
-        end
+        sum = sum + x[i][2]
+        count = count + 1
     end
     return sum / count
 end
@@ -352,44 +350,25 @@ local function GetManipFactor()
         for j = 1, #keyData do
             if keyPairs[i][1] == keyData[j][3] then
                 table.insert(keyAData, keyData[j])
-            end
-            if keyPairs[i][2] == keyData[j][3] then
+            elseif keyPairs[i][2] == keyData[j][3] then
                 table.insert(keyBData, keyData[j])
             end
         end
         if #keyAData >= 2 and #keyBData >= 2 then
             local deviation = CalculateDeviations(keyAData, keyBData)
             table.insert(deviations, deviation)
+            table.insert(mfs, ArithmeticMeanForDeviatons(deviation))
+            table.insert(mfsw, #deviation)
             if hand == "left" then
                 table.insert(ldeviations, deviation)
-            else
+                table.insert(lmfs, ArithmeticMeanForDeviatons(deviation))
+                table.insert(lmfsw, #deviation)
+            elseif hand == "right" then
                 table.insert(rdeviations, deviation)
+                table.insert(rmfs, ArithmeticMeanForDeviatons(deviation))
+                table.insert(rmfsw, #deviation)
             end
         end
-    end
-
-    for i = 1, #deviations do
-        table.insert(mfs, ArithmeticMeanForDeviatons(deviations))
-    end
-
-    for i = 1, #ldeviations do
-        table.insert(lmfs, ArithmeticMeanForDeviatons(ldeviations))
-    end
-
-    for i = 1, #rdeviations do
-        table.insert(rmfs, ArithmeticMeanForDeviatons(rdeviations))
-    end
-
-    for i = 1, #mfs do
-        table.insert(mfsw, #mfs)
-    end
-
-    for i = 1, #lmfs do
-        table.insert(lmfsw, #lmfs)
-    end
-
-    for i = 1, #rmfs do
-        table.insert(rmfsw, #rmfs)
     end
 
     -- Final manip factor
