@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Max ManipFactor for EtternaOnline
+// @name         Dev ManipFactor for EtternaOnline
 // @namespace    http://tampermonkey.net/
 // @version      0.1
-// @description  Estimates the amount of max manip from the replay data.
+// @description  Estimates the amount of manip from the replay data.
 // @author       U1wknUzeU6, OpakyL
 // @match        https://etternaonline.com/*
 // @grant        none
@@ -121,12 +121,13 @@
 
         let avgInterval = k0AvgInterval//(k0AvgInterval + k1AvgInterval) / 2;
         avgInterval /= 2;
+        console.log(sortedKeyAData)
 
         sortedKeyAData.forEach(({ time: timeA, error: errorA }) => {
             const lastKeyBItem = sortedKeyBData.filter(({ time }) => time < timeA - eps).pop();
             if (lastKeyBItem) {
                 const { time: timeB, error: errorB } = lastKeyBItem;
-                const deviation = (timeA - timeB) / avgInterval;
+                const deviation = (errorB - errorA) / avgInterval;
 
                 if ((deviation > 0) & (deviation <= 1.2)) {
                     xValues.push(timeA);
@@ -186,7 +187,7 @@
 
                 const manipLabel = document.createElement("div");
                 manipLabel.className = "msd font-small-bold";
-                manipLabel.innerText = "maxMF"; // Label for Manipulation Factor
+                manipLabel.innerText = "devMF"; // Label for Manipulation Factor
                 manipLabel.style.textAlign = "left"; // Align label to the left
                 manipDiv.appendChild(manipLabel);
 
