@@ -419,11 +419,11 @@ t[#t + 1] = Def.ActorFrame {
                 -- In aspect ratio less than 1.6, "number% MF"
                 self:addx(3)
                 self:halign(0)
-                self:settext("MF")
+                self:settext("tMF")
             else
                 -- In aspect ratio greater or equal to 1.6, "MF: number%"
                 self:halign(1)
-                self:settext("MF:")
+                self:settext("tMF:")
             end
         end,
         MouseOverCommand = function(self)
