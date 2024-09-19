@@ -202,7 +202,7 @@ local function FindKeyPairs(keymode)
     return keyPairs
 end
 
-local function LeftOrRirght(track, keymode)
+local function GetHand(track, keymode)
     if keymode % 2 == 0 then
         if track <= keymode / 2 - 1  then
             return  "left"
@@ -230,7 +230,7 @@ local function GenerateKeyData(offsetVector, timingVector, trackVector, tntypeVe
 end
 
 -- Function to calculate deviations
-local function CalculateDeviations(keyAData, keyBData)
+local function CalculateDeviations(keyAData, keyBData, keymode)
     if keyAData and keyBData then
         local eps = 0.1
         local deviations = {}
@@ -285,6 +285,7 @@ local function CalculateDeviations(keyAData, keyBData)
         -- Average of averages
         local avgInterval = (k0AvgInterval + k1AvgInterval) / 2
         -- Halve the interval (for trills)
+        avgInterval = keymode / 4 -- scaler
         avgInterval = avgInterval / 2
 
         table.sort(keyAData, function(a, b) return a[1] < b[1] end)
@@ -346,7 +347,7 @@ local function GetManipFactor()
     for i = 1, #keyPairs do
         local keyAData = {}
         local keyBData = {}
-        local hand = LeftOrRirght(keyPairs[i][1], keymode)
+        local hand = GetHand(keyPairs[i][1], keymode)
         for j = 1, #keyData do
             if keyPairs[i][1] == keyData[j][3] then
                 table.insert(keyAData, keyData[j])
@@ -355,7 +356,7 @@ local function GetManipFactor()
             end
         end
         if #keyAData >= 2 and #keyBData >= 2 then
-            local deviation = CalculateDeviations(keyAData, keyBData)
+            local deviation = CalculateDeviations(keyAData, keyBData, keymode)
             table.insert(deviations, deviation)
             table.insert(mfs, ArithmeticMeanForDeviatons(deviation))
             table.insert(mfsw, #deviation)
@@ -390,10 +391,7 @@ function GetManipFactorForRow(time)
     local mfs = {}
     local mfsw = {}
 
-    for i = 1, #deviations do
-        table.insert(mfs, ArithmeticMeanForTimedDeviatons(FilterTableByTime(deviations, time)))
-    end
-
+    table.insert(mfs, ArithmeticMeanForTimedDeviatons(FilterTableByTime(deviations, time)))
     for i = 1, #mfs do
         table.insert(mfsw, #mfs)
     end
