@@ -285,7 +285,7 @@ local function CalculateDeviations(keyAData, keyBData, keymode)
         -- Average of averages
         local avgInterval = (k0AvgInterval + k1AvgInterval) / 2
         -- Halve the interval (for trills)
-        avgInterval = keymode / 4 -- scaler
+        avgInterval = avgInterval * keymode / 4 -- scaler
         avgInterval = avgInterval / 2
 
         table.sort(keyAData, function(a, b) return a[1] < b[1] end)
@@ -293,7 +293,7 @@ local function CalculateDeviations(keyAData, keyBData, keymode)
         -- Calculate deviations
         local finder = 1
         for i = 1, #keyAData do
-            local timeA, errorA, trackA = keyAData[i][1], keyAData[i][2], keyAData[i][3]
+            local timeA, errorA = keyAData[i][1], keyAData[i][2]
 
             -- Find the closest previous note in keyBData
             local lastKeyBItem
