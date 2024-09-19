@@ -1,15 +1,11 @@
 // ==UserScript==
-// @name         ManipFactor for EtternaOnline
+// @name         Max ManipFactor for EtternaOnline
 // @namespace    http://tampermonkey.net/
-// @version      0.1.5
-// @description  Estimates the amount of manip from the replay data.
+// @version      0.1
+// @description  Estimates the amount of max manip from the replay data.
 // @author       U1wknUzeU6, OpakyL
 // @match        https://etternaonline.com/*
 // @grant        none
-// @updateURL    https://raw.githubusercontent.com/MaidOfFire/ManipFactorEtterna/main/manipfactor.etternaonline.js
-// @downloadURL  https://raw.githubusercontent.com/MaidOfFire/ManipFactorEtterna/main/manipfactor.etternaonline.js
-// @homepageURL  https://github.com/MaidOfFire/ManipFactorEtterna
-// @supportURL   https://github.com/MaidOfFire/ManipFactorEtterna/issues/new
 // ==/UserScript==
 
 (function() {
@@ -123,18 +119,18 @@
         const k0AvgInterval = filteredDiffA.reduce((sum, diff) => sum + diff, 0) / filteredDiffA.length;
         const k1AvgInterval = filteredDiffB.reduce((sum, diff) => sum + diff, 0) / filteredDiffB.length;
 
-        let avgInterval = (k0AvgInterval + k1AvgInterval) / 2;
+        let avgInterval = k0AvgInterval//(k0AvgInterval + k1AvgInterval) / 2;
         avgInterval /= 2;
 
         sortedKeyAData.forEach(({ time: timeA, error: errorA }) => {
             const lastKeyBItem = sortedKeyBData.filter(({ time }) => time < timeA - eps).pop();
             if (lastKeyBItem) {
                 const { time: timeB, error: errorB } = lastKeyBItem;
-                const deviation = (errorB - errorA) / avgInterval;
-                const absDeviation = Math.abs(deviation);
-                if (absDeviation <= 1.5) {
+                const deviation = (timeA - timeB) / avgInterval;
+
+                if ((deviation > 0) & (deviation <= 1.2)) {
                     xValues.push(timeA);
-                    yValues.push(absDeviation);
+                    yValues.push(deviation > 1 ? 1 : deviation);
                 }
             }
         });
@@ -190,7 +186,7 @@
 
                 const manipLabel = document.createElement("div");
                 manipLabel.className = "msd font-small-bold";
-                manipLabel.innerText = "MF"; // Label for Manipulation Factor
+                manipLabel.innerText = "maxMF"; // Label for Manipulation Factor
                 manipLabel.style.textAlign = "left"; // Align label to the left
                 manipDiv.appendChild(manipLabel);
 
