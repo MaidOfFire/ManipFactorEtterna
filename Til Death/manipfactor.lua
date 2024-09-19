@@ -33,7 +33,6 @@ local keyData
 
 -- deviations for total mf
 local deviations = {}
-local maxdeviations = {}
 
 local mf = {} -- manip factor
 
@@ -235,7 +234,6 @@ local function CalculateDeviations(keyAData, keyBData, keymode)
     if keyAData and keyBData then
         local eps = 0.1
         local deviations = {}
-        local maxdeviations = {}
 
         -- Extract time values from key data
         local timesA = {}
@@ -285,9 +283,9 @@ local function CalculateDeviations(keyAData, keyBData, keymode)
         local k1AvgInterval = ArithmeticMean(filteredDiffB)
 
         -- Average of averages
-        local avgInterval = k0AvgInterval
-        -- Halve the interval (for trills)
+        local avgInterval = (k0AvgInterval + k1AvgInterval) / 2
         avgInterval = avgInterval / (keymode / 4) -- scaler
+        -- Halve the interval (for trills)
         avgInterval = avgInterval / 2
 
         table.sort(keyAData, function(a, b) return a[1] < b[1] end)
@@ -310,21 +308,16 @@ local function CalculateDeviations(keyAData, keyBData, keymode)
 
             -- Add deviations if conditions are met
             if lastKeyBItem then
-                local timeB, errorB = lastKeyBItem[1], lastKeyBItem[2]
+                local errorB = lastKeyBItem[2]
                 local deviation = (errorB - errorA) / avgInterval
-                local maxdeviation = (timeA - timeB) / avgInterval
-                if ((maxdeviation > 0) and (maxdeviation <= 1.2)) then
-                    if maxdeviation > 1 then maxdeviation = 1 end
-                    table.insert(maxdeviations, {timeA, maxdeviation})
-                end
-                if ((deviation > 0) and (deviation <= 1.2)) then
-                    if deviation > 1 then deviation = 1 end
-                    table.insert(deviations, {timeA, deviation})
+                local absDeviation = math.abs(deviation)
+                if absDeviation <= 1.5 then
+                    table.insert(deviations, {timeA, absDeviation})
                 end
             end
         end
 
-        return {deviations, maxdeviations}
+        return deviations
     else
         return {0}
     end
@@ -352,10 +345,6 @@ local function GetManipFactor()
     local rmfs = {}
     local rmfsw = {}
 
-    maxdeviations = {}
-    local maxmfs = {}
-    local maxmfsw = {}
-
     for i = 1, #keyPairs do
         local keyAData = {}
         local keyBData = {}
@@ -371,9 +360,6 @@ local function GetManipFactor()
             local deviation = CalculateDeviations(keyAData, keyBData, keymode)[1]
             local maxdeviation = CalculateDeviations(keyAData, keyBData, keymode)[2]
             table.insert(deviations, deviation)
-            table.insert(maxdeviations, maxdeviation)
-            table.insert(maxmfs, ArithmeticMeanForDeviatons(maxdeviation))
-            table.insert(maxmfsw, #maxdeviation)
             table.insert(mfs, ArithmeticMeanForDeviatons(deviation))
             table.insert(mfsw, #deviation)
             if hand == "left" then
@@ -388,10 +374,8 @@ local function GetManipFactor()
         end
     end
 
-    --max possible total manip factor
-    local maxmftotal = WeightedMean(maxmfs, maxmfsw)
     -- Final manip factor
-    local mftotal = WeightedMean(mfs, mfsw) / maxmftotal
+    local mftotal = WeightedMean(mfs, mfsw)
 
     -- left/right mf
     local mfleft = WeightedMean(lmfs, lmfsw)
@@ -435,11 +419,11 @@ t[#t + 1] = Def.ActorFrame {
                 -- In aspect ratio less than 1.6, "number% MF"
                 self:addx(3)
                 self:halign(0)
-                self:settext("nMF")
+                self:settext("MF")
             else
                 -- In aspect ratio greater or equal to 1.6, "MF: number%"
                 self:halign(1)
-                self:settext("nMF:")
+                self:settext("MF:")
             end
         end,
         MouseOverCommand = function(self)
