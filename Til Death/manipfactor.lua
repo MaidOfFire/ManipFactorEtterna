@@ -222,7 +222,7 @@ end
 local function GenerateKeyData(offsetVector, timingVector, trackVector, tntypeVector)
     local keyData = {}
     for i = 1, #offsetVector do
-        if tntypeVector[i] == "TapNoteType_Tap" then
+        if tntypeVector[i] ~= "TapNoteType_Mine" and tntypeVector[i] ~= "TapNoteType_HoldTail" then
             table.insert(keyData, {timingVector[i], offsetVector[i], trackVector[i]})
         end
     end
