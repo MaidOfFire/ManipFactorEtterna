@@ -119,8 +119,8 @@ local function byMF(x)
     if x > 0.4 then
         x = 0.4
     end
-    -- Calculate the hue from 0 (green) to 1 (red)
-    local hue = 120 - (x * 120) -- 120 to 0 degrees
+    -- Calculate the hue from 0 (green) to 0.4 (red)
+    local hue = 120 - (x * 300) -- 120 to 0 degrees
     local saturation = 0.9 -- Full saturation
     local brightness = 0.9 -- Full brightness
 
@@ -284,8 +284,8 @@ local function CalculateDeviations(keyAData, keyBData, keymode)
 
         -- Average of averages
         local avgInterval = (k0AvgInterval + k1AvgInterval) / 2
-        avgInterval = avgInterval / (keymode / 4) -- scaler
         -- Halve the interval (for trills)
+        avgInterval = avgInterval / (keymode / 4) -- scaler
         avgInterval = avgInterval / 2
 
         table.sort(keyAData, function(a, b) return a[1] < b[1] end)
@@ -333,7 +333,6 @@ local function GetManipFactor()
     local keyPairs = FindKeyPairs(keymode)
 
     deviations = {}
-
     local mfs = {}
     local mfsw = {}
 
@@ -357,8 +356,7 @@ local function GetManipFactor()
             end
         end
         if #keyAData >= 2 and #keyBData >= 2 then
-            local deviation = CalculateDeviations(keyAData, keyBData, keymode)[1]
-            local maxdeviation = CalculateDeviations(keyAData, keyBData, keymode)[2]
+            local deviation = CalculateDeviations(keyAData, keyBData, keymode)
             table.insert(deviations, deviation)
             table.insert(mfs, ArithmeticMeanForDeviatons(deviation))
             table.insert(mfsw, #deviation)
