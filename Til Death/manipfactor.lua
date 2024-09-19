@@ -285,7 +285,7 @@ local function CalculateDeviations(keyAData, keyBData, keymode)
         -- Average of averages
         local avgInterval = (k0AvgInterval + k1AvgInterval) / 2
         -- Halve the interval (for trills)
-        avgInterval = avgInterval / keymode / 4 -- scaler
+        avgInterval = avgInterval / (keymode / 4) -- scaler
         avgInterval = avgInterval / 2
 
         table.sort(keyAData, function(a, b) return a[1] < b[1] end)
