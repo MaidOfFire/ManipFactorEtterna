@@ -67,9 +67,9 @@
         const totalSize_max = y_lh_max.length + y_rh_max.length;
         const manipFactor_max = (manip_factor_left_max * y_lh_max.length + manip_factor_right_max * y_rh_max.length) / totalSize_max;
 
-        const manipFactor_norm = manipFactor / manipFactor_max * 0.7 // to adjust scaling with prev versions
-        const manip_factor_left_norm = manip_factor_left / manip_factor_left_max * 0.7
-        const manip_factor_right_norm = manip_factor_right / manip_factor_right_max * 0.7
+        const manipFactor_norm = manipFactor / manipFactor_max * 0.8 // to adjust scaling with prev versions
+        const manip_factor_left_norm = manip_factor_left / manip_factor_left_max * 0.8
+        const manip_factor_right_norm = manip_factor_right / manip_factor_right_max * 0.8
 
         return { manipFactor:manipFactor_norm, leftHandMF: manip_factor_left_norm, rightHandMF: manip_factor_right_norm };
     }
@@ -78,10 +78,10 @@
     // Function to calculate deviations between keys
     function calculateDeviations(keyAData, keyBData) {
         const eps = 0.1;
-        const xValues = [];
-        const yValues = [];
-        const max_xValues = [];
-        const max_yValues = [];
+        const xValues = [0];
+        const yValues = [0];
+        const max_xValues = [0];
+        const max_yValues = [1];
 
         const sortedKeyAData = keyAData.slice().sort((a, b) => a.time - b.time);
         const sortedKeyBData = keyBData.slice().sort((a, b) => a.time - b.time);
