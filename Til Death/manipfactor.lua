@@ -86,8 +86,10 @@ local function ArithmeticMeanForTimedDeviatons(x)
     local sum = 0
     local count = 0
     for i = 1, #x do
-        sum = sum + x[i][2]
-        count = count + 1
+        for k = 1, #x[i] do
+            sum = sum + x[i][k][2]
+            count = count + 1
+        end
     end
     return sum / count
 end
@@ -225,7 +227,7 @@ end
 local function GenerateKeyData(offsetVector, timingVector, trackVector, tntypeVector)
     local keyData = {}
     for i = 1, #offsetVector do
-        if tntypeVector[i] == "TapNoteType_Tap" then
+        if true then
             table.insert(keyData, {timingVector[i], offsetVector[i], trackVector[i]})
         end
     end
@@ -233,7 +235,7 @@ local function GenerateKeyData(offsetVector, timingVector, trackVector, tntypeVe
 end
 
 -- Function to calculate deviations
-local function CalculateDeviations(keyAData, keyBData, keymode)
+local function CalculateDeviations(keyAData, keyBData)
     if keyAData and keyBData then
         local eps = 0.1
         local deviations = {}
@@ -314,10 +316,10 @@ local function CalculateDeviations(keyAData, keyBData, keymode)
                 local timeB, errorB = lastKeyBItem[1], lastKeyBItem[2]
                 local deviation = (errorB - errorA) / avgInterval
                 local maxdeviation = (timeA - timeB) / avgInterval
-                if ((maxdeviation > 0) and (maxdeviation <= 1)) then
+                if maxdeviation > 0 and maxdeviation <= 1 then
                     table.insert(maxdeviations, {timeA, maxdeviation})
                 end
-                if ((deviation > 0) and (deviation <= 1.25)) then
+                if deviation > 0 and deviation <= 1.25 then
                     if deviation > 1 then deviation = 1 end
                     table.insert(deviations, {timeA, deviation})
                 end
@@ -340,10 +342,14 @@ local function GetManipFactor()
     local keyPairs = FindKeyPairs(keymode)
 
     local ldeviations = {}
-    local rdeviations = {}
-
     local lmaxdeviations = {}
+    local lsize = 0
+    local lmaxsize = 0
+
+    local rdeviations = {}
     local rmaxdeviations = {}
+    local rsize = 0
+    local rmaxsize = 0
 
     for i = 1, #keyPairs do
         local keyAData = {}
@@ -357,15 +363,19 @@ local function GetManipFactor()
             end
         end
         if #keyAData >= 2 and #keyBData >= 2 then
-            local temp = CalculateDeviations(keyAData, keyBData, keymode)
+            local temp = CalculateDeviations(keyAData, keyBData)
             local deviation = temp[1]
             local maxdeviation = temp[2]
             if hand == "left" then
                 table.insert(ldeviations, deviation)
+                lsize = lsize + #deviation
                 table.insert(lmaxdeviations, maxdeviation)
+                lmaxsize = lsize + #maxdeviation
             elseif hand == "right" then
                 table.insert(rdeviations, deviation)
+                rsize = rsize + #deviation
                 table.insert(rmaxdeviations, maxdeviation)
+                rmaxsize = rsize + #maxdeviation
             end
         end
     end
@@ -377,9 +387,9 @@ local function GetManipFactor()
     local maxmfright = ArithmeticMeanForDeviatons(rmaxdeviations)
 
     --max possible total manip factor
-    local maxmf = (maxmfleft * #lmaxdeviations + maxmfright * #rmaxdeviations) / (#lmaxdeviations + #rmaxdeviations)
+    local maxmf = (maxmfleft * lmaxsize + maxmfright * rmaxsize) / (lmaxsize + rmaxsize)
     -- Final manip factor
-    local mft = (mfleft * #ldeviations + mfright * #rdeviations) / (#ldeviations + #rdeviations)
+    local mft = (mfleft * lsize + mfright * rsize) / (lsize + rsize)
 
     local nmf = mft / maxmf * 0.8
     local lnmf = mfleft / maxmfleft * 0.8
@@ -433,13 +443,13 @@ t[#t + 1] = Def.ActorFrame {
         MouseOverCommand = function(self)
             local mfd = self:GetParent():GetChild("ManipFactor")
             if aspectRatio < 1.6 then
-                mfd:GetParent():GetChild("ManipFactor"):settextf("(L: %2.1f%% R: %2.1f%%) %2.1f%%", mf[2] * 100, mf[3] * 100, mf[1] * 100)
+                mfd:GetParent():GetChild("ManipFactor"):settextf("(L: %2.3f%% R: %2.3f%%) %2.3f%%", mf[2] * 100, mf[3] * 100, mf[1] * 100)
             else
-                mfd:GetParent():GetChild("ManipFactor"):settextf("%2.1f%% (L: %2.1f%% R: %2.1f%%)", mf[1] * 100, mf[2] * 100, mf[3] * 100)
+                mfd:GetParent():GetChild("ManipFactor"):settextf("%2.3f%% (L: %2.3f%% R: %2.3f%%)", mf[1] * 100, mf[2] * 100, mf[3] * 100)
             end
         end,
         MouseOutCommand = function(self)
-            self:GetParent():GetChild("ManipFactor"):settextf("%2.1f%%", mf[1] * 100)
+            self:GetParent():GetChild("ManipFactor"):settextf("%2.3f%%", mf[1] * 100)
         end
     },
     -- Second Text Element (ManipFactor Value)
@@ -488,17 +498,17 @@ t[#t + 1] = Def.ActorFrame {
             mf = GetManipFactor()
 
             self:diffuse(byMF(mf[1]))
-            self:settextf("%2.1f%%", mf[1] * 100)
+            self:settextf("%2.3f%%", mf[1] * 100)
         end,
         MouseOverCommand = function(self)
             if aspectRatio < 1.6 then
-                self:settextf("(L: %2.1f%% R: %2.1f%%) %2.1f%%", mf[2] * 100, mf[3] * 100, mf[1] * 100)
+                self:settextf("(L: %2.3f%% R: %2.3f%%) %2.3f%%", mf[2] * 100, mf[3] * 100, mf[1] * 100)
             else
-                self:settextf("%2.1f%% (L: %2.1f%% R: %2.1f%%)", mf[1] * 100, mf[2] * 100, mf[3] * 100)
+                self:settextf("%2.3f%% (L: %2.3f%% R: %2.3f%%)", mf[1] * 100, mf[2] * 100, mf[3] * 100)
             end
         end,
         MouseOutCommand = function(self)
-            self:settextf("%2.1f%%", mf[1] * 100)
+            self:settextf("%2.3f%%", mf[1] * 100)
         end
     }
 }
