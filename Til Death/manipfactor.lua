@@ -74,8 +74,10 @@ local function ArithmeticMeanForDeviatons(x)
     local sum = 0
     local count = 0
     for i = 1, #x do
-        sum = sum + x[i][2]
-        count = count + 1
+        for k = 1, #x[i] do
+            sum = sum + x[i][k][2]
+            count = count + 1
+        end
     end
     return sum / count
 end
@@ -285,9 +287,8 @@ local function CalculateDeviations(keyAData, keyBData, keymode)
         local k1AvgInterval = ArithmeticMean(filteredDiffB)
 
         -- Average of averages
-        local avgInterval = k0AvgInterval
+        local avgInterval = (k0AvgInterval + k1AvgInterval) / 2
         -- Halve the interval (for trills)
-        avgInterval = avgInterval / (keymode / 4) -- scaler
         avgInterval = avgInterval / 2
 
         table.sort(keyAData, function(a, b) return a[1] < b[1] end)
@@ -313,11 +314,10 @@ local function CalculateDeviations(keyAData, keyBData, keymode)
                 local timeB, errorB = lastKeyBItem[1], lastKeyBItem[2]
                 local deviation = (errorB - errorA) / avgInterval
                 local maxdeviation = (timeA - timeB) / avgInterval
-                if ((maxdeviation > 0) and (maxdeviation <= 1.2)) then
-                    if maxdeviation > 1 then maxdeviation = 1 end
+                if ((maxdeviation > 0) and (maxdeviation <= 1)) then
                     table.insert(maxdeviations, {timeA, maxdeviation})
                 end
-                if ((deviation > 0) and (deviation <= 1.2)) then
+                if ((deviation > 0) and (deviation <= 1.25)) then
                     if deviation > 1 then deviation = 1 end
                     table.insert(deviations, {timeA, deviation})
                 end
@@ -339,22 +339,11 @@ local function GetManipFactor()
     local keymode = GetMaxTrack()
     local keyPairs = FindKeyPairs(keymode)
 
-    deviations = {}
-
-    local mfs = {}
-    local mfsw = {}
-
     local ldeviations = {}
-    local lmfs = {}
-    local lmfsw = {}
-
     local rdeviations = {}
-    local rmfs = {}
-    local rmfsw = {}
 
-    maxdeviations = {}
-    local maxmfs = {}
-    local maxmfsw = {}
+    local lmaxdeviations = {}
+    local rmaxdeviations = {}
 
     for i = 1, #keyPairs do
         local keyAData = {}
@@ -368,40 +357,39 @@ local function GetManipFactor()
             end
         end
         if #keyAData >= 2 and #keyBData >= 2 then
-            local deviation = CalculateDeviations(keyAData, keyBData, keymode)[1]
-            local maxdeviation = CalculateDeviations(keyAData, keyBData, keymode)[2]
-            table.insert(deviations, deviation)
-            table.insert(maxdeviations, maxdeviation)
-            table.insert(maxmfs, ArithmeticMeanForDeviatons(maxdeviation))
-            table.insert(maxmfsw, #maxdeviation)
-            table.insert(mfs, ArithmeticMeanForDeviatons(deviation))
-            table.insert(mfsw, #deviation)
+            local temp = CalculateDeviations(keyAData, keyBData, keymode)
+            local deviation = temp[1]
+            local maxdeviation = temp[2]
             if hand == "left" then
                 table.insert(ldeviations, deviation)
-                table.insert(lmfs, ArithmeticMeanForDeviatons(deviation))
-                table.insert(lmfsw, #deviation)
+                table.insert(lmaxdeviations, maxdeviation)
             elseif hand == "right" then
                 table.insert(rdeviations, deviation)
-                table.insert(rmfs, ArithmeticMeanForDeviatons(deviation))
-                table.insert(rmfsw, #deviation)
+                table.insert(rmaxdeviations, maxdeviation)
             end
         end
     end
 
+    local mfleft = ArithmeticMeanForDeviatons(ldeviations)
+    local maxmfleft = ArithmeticMeanForDeviatons(lmaxdeviations)
+
+    local mfright = ArithmeticMeanForDeviatons(rdeviations)
+    local maxmfright = ArithmeticMeanForDeviatons(rmaxdeviations)
+
     --max possible total manip factor
-    local maxmftotal = WeightedMean(maxmfs, maxmfsw)
+    local maxmf = (maxmfleft * #lmaxdeviations + maxmfright * #rmaxdeviations) / (#lmaxdeviations + #rmaxdeviations)
     -- Final manip factor
-    local mftotal = WeightedMean(mfs, mfsw) / maxmftotal
+    local mft = (mfleft * #ldeviations + mfright * #rdeviations) / (#ldeviations + #rdeviations)
 
-    -- left/right mf
-    local mfleft = WeightedMean(lmfs, lmfsw)
-    local mfright = WeightedMean(rmfs, rmfsw)
+    local nmf = mft / maxmf * 0.8
+    local lnmf = mfleft / maxmfleft * 0.8
+    local rnmf = mfright / maxmfright * 0.8
 
-    if mftotal ~= mftotal then -- x ~= x means that x == NaN
-        mftotal, mfleft, mfright = 0, 0, 0
+    if nmf ~= nmf then -- x ~= x means that x == NaN
+        nmf, lnmf, rnmf = 0, 0, 0
     end
 
-    return {mftotal, mfleft, mfright}
+    return {nmf, lnmf, rnmf}
 end
 
 -- Get manip factor based on key comparisons and row time
