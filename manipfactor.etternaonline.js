@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Dev ManipFactor for EtternaOnline
+// @name         Norm ManipFactor for EtternaOnline
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Estimates the amount of manip from the replay data.
 // @author       U1wknUzeU6, OpakyL
 // @match        https://etternaonline.com/*
@@ -41,59 +41,47 @@
             }
         });
 
+        // Calculate deviations
         const k0to1Deviations = calculateDeviations(key0Data, key1Data);
         const k1to0Deviations = calculateDeviations(key1Data, key0Data);
         const k2to3Deviations = calculateDeviations(key2Data, key3Data);
         const k3to2Deviations = calculateDeviations(key3Data, key2Data);
 
-        const mfk0to1 = k0to1Deviations.yValues.reduce((a, b) => a + b, 0) / k0to1Deviations.yValues.length;
-        const mfk1to0 = k1to0Deviations.yValues.reduce((a, b) => a + b, 0) / k1to0Deviations.yValues.length;
-        const mfk2to3 = k2to3Deviations.yValues.reduce((a, b) => a + b, 0) / k2to3Deviations.yValues.length;
-        const mfk3to2 = k3to2Deviations.yValues.reduce((a, b) => a + b, 0) / k3to2Deviations.yValues.length;
+        // Concatenate yValues for left hand and right hand
+        const y_lh = k0to1Deviations.yValues.concat(k1to0Deviations.yValues);
+        const y_rh = k2to3Deviations.yValues.concat(k3to2Deviations.yValues);
+        // Concatenate yValues for left hand and right hand
+        const y_lh_max = k0to1Deviations.max_yValues.concat(k1to0Deviations.max_yValues);
+        const y_rh_max = k2to3Deviations.max_yValues.concat(k3to2Deviations.max_yValues);
 
-        // LH-MF (Weighted average of 0→1 and 1→0)
-        const leftHandWeights = [
-            k0to1Deviations.yValues.length,
-            k1to0Deviations.yValues.length
-        ];
-        const leftHandMF = weightedMean([mfk0to1, mfk1to0], leftHandWeights);
+        // Compute manip_factor_left and manip_factor_right as mean of concatenated yValues
+        const manip_factor_left = y_lh.reduce((a, b) => a + b, 0) / y_lh.length;
+        const manip_factor_right = y_rh.reduce((a, b) => a + b, 0) / y_rh.length;
+        const manip_factor_left_max = y_lh_max.reduce((a, b) => a + b, 0) / y_lh_max.length;
+        const manip_factor_right_max = y_rh_max.reduce((a, b) => a + b, 0) / y_rh_max.length;
 
-        // RH-MF (Weighted average of 2→3 and 3→2)
-        const rightHandWeights = [
-            k2to3Deviations.yValues.length,
-            k3to2Deviations.yValues.length
-        ];
-        const rightHandMF = weightedMean([mfk2to3, mfk3to2], rightHandWeights);
+        // Compute total manipFactor as weighted average of left and right hand factors
+        const totalSize = y_lh.length + y_rh.length;
+        const manipFactor = (manip_factor_left * y_lh.length + manip_factor_right * y_rh.length) / totalSize;
 
-        // Overall manip factor
-        const overallWeights = [
-            k0to1Deviations.yValues.length,
-            k1to0Deviations.yValues.length,
-            k2to3Deviations.yValues.length,
-            k3to2Deviations.yValues.length
-        ];
-        const manipFactor = weightedMean([mfk0to1, mfk1to0, mfk2to3, mfk3to2], overallWeights);
+        const totalSize_max = y_lh_max.length + y_rh_max.length;
+        const manipFactor_max = (manip_factor_left_max * y_lh_max.length + manip_factor_right_max * y_rh_max.length) / totalSize_max;
 
-        return { manipFactor, leftHandMF, rightHandMF };
+        const manipFactor_norm = manipFactor / manipFactor_max * 0.8 // to adjust scaling with prev versions
+        const manip_factor_left_norm = manip_factor_left / manip_factor_left_max * 0.8
+        const manip_factor_right_norm = manip_factor_right / manip_factor_right_max * 0.8
+
+        return { manipFactor:manipFactor_norm, leftHandMF: manip_factor_left_norm, rightHandMF: manip_factor_right_norm };
     }
 
-    // Function to calculate ManipScore based on manip factor
-    function manipScoreFunction(manipFactor) {
-        if (manipFactor <= 0.1) {
-            return 1;
-        } else {
-            const C = 2.3;
-            const k = 10;
-            const b = -0.1;
-            return Math.exp(-k * Math.pow(manipFactor + b, C));
-        }
-    }
 
     // Function to calculate deviations between keys
     function calculateDeviations(keyAData, keyBData) {
         const eps = 0.1;
-        const xValues = [];
-        const yValues = [];
+        const xValues = [0];
+        const yValues = [0];
+        const max_xValues = [0];
+        const max_yValues = [1];
 
         const sortedKeyAData = keyAData.slice().sort((a, b) => a.time - b.time);
         const sortedKeyBData = keyBData.slice().sort((a, b) => a.time - b.time);
@@ -119,24 +107,29 @@
         const k0AvgInterval = filteredDiffA.reduce((sum, diff) => sum + diff, 0) / filteredDiffA.length;
         const k1AvgInterval = filteredDiffB.reduce((sum, diff) => sum + diff, 0) / filteredDiffB.length;
 
-        let avgInterval = k0AvgInterval//(k0AvgInterval + k1AvgInterval) / 2;
+        let avgInterval = (k0AvgInterval + k1AvgInterval) / 2;
         avgInterval /= 2;
-        console.log(sortedKeyAData)
 
         sortedKeyAData.forEach(({ time: timeA, error: errorA }) => {
             const lastKeyBItem = sortedKeyBData.filter(({ time }) => time < timeA - eps).pop();
             if (lastKeyBItem) {
                 const { time: timeB, error: errorB } = lastKeyBItem;
                 const deviation = (errorB - errorA) / avgInterval;
+                const max_deviation = (timeA - timeB) / avgInterval;
 
-                if ((deviation > 0) & (deviation <= 1.2)) {
+                if ((deviation > 0) & (deviation <= 1.25)) {
                     xValues.push(timeA);
                     yValues.push(deviation > 1 ? 1 : deviation);
+                }
+
+                if ((max_deviation > 0) & (max_deviation <= 1)) {
+                    max_xValues.push(timeA);
+                    max_yValues.push(max_deviation);
                 }
             }
         });
 
-        return { xValues, yValues };
+        return { xValues, yValues, max_xValues, max_yValues };
     }
 
     // Helper function to calculate percentiles
@@ -187,7 +180,7 @@
 
                 const manipLabel = document.createElement("div");
                 manipLabel.className = "msd font-small-bold";
-                manipLabel.innerText = "devMF"; // Label for Manipulation Factor
+                manipLabel.innerText = "nMF"; // Label for Manipulation Factor
                 manipLabel.style.textAlign = "left"; // Align label to the left
                 manipDiv.appendChild(manipLabel);
 

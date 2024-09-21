@@ -23,71 +23,45 @@
 
     // Function to calculate manipulation factor and Left hand MF, Right hand MF
     function getManipFactor(replayData) {
-        const key0Data = [];
-        const key1Data = [];
-        const key2Data = [];
-        const key3Data = [];
+    const key0Data = [];
+    const key1Data = [];
+    const key2Data = [];
+    const key3Data = [];
 
-        replayData.forEach(([time, error, keyLabel]) => {
-            const timeInMs = time * 1000;
-            if (keyLabel === 0) {
-                key0Data.push({ time: timeInMs, error });
-            } else if (keyLabel === 1) {
-                key1Data.push({ time: timeInMs, error });
-            } else if (keyLabel === 2) {
-                key2Data.push({ time: timeInMs, error });
-            } else if (keyLabel === 3) {
-                key3Data.push({ time: timeInMs, error });
-            }
-        });
-
-        const k0to1Deviations = calculateDeviations(key0Data, key1Data);
-        const k1to0Deviations = calculateDeviations(key1Data, key0Data);
-        const k2to3Deviations = calculateDeviations(key2Data, key3Data);
-        const k3to2Deviations = calculateDeviations(key3Data, key2Data);
-
-        const mfk0to1 = k0to1Deviations.yValues.reduce((a, b) => a + b, 0) / k0to1Deviations.yValues.length;
-        const mfk1to0 = k1to0Deviations.yValues.reduce((a, b) => a + b, 0) / k1to0Deviations.yValues.length;
-        const mfk2to3 = k2to3Deviations.yValues.reduce((a, b) => a + b, 0) / k2to3Deviations.yValues.length;
-        const mfk3to2 = k3to2Deviations.yValues.reduce((a, b) => a + b, 0) / k3to2Deviations.yValues.length;
-
-        // LH-MF (Weighted average of 0→1 and 1→0)
-        const leftHandWeights = [
-            k0to1Deviations.yValues.length,
-            k1to0Deviations.yValues.length
-        ];
-        const leftHandMF = weightedMean([mfk0to1, mfk1to0], leftHandWeights);
-
-        // RH-MF (Weighted average of 2→3 and 3→2)
-        const rightHandWeights = [
-            k2to3Deviations.yValues.length,
-            k3to2Deviations.yValues.length
-        ];
-        const rightHandMF = weightedMean([mfk2to3, mfk3to2], rightHandWeights);
-
-        // Overall manip factor
-        const overallWeights = [
-            k0to1Deviations.yValues.length,
-            k1to0Deviations.yValues.length,
-            k2to3Deviations.yValues.length,
-            k3to2Deviations.yValues.length
-        ];
-        const manipFactor = weightedMean([mfk0to1, mfk1to0, mfk2to3, mfk3to2], overallWeights);
-
-        return { manipFactor, leftHandMF, rightHandMF };
-    }
-
-    // Function to calculate ManipScore based on manip factor
-    function manipScoreFunction(manipFactor) {
-        if (manipFactor <= 0.1) {
-            return 1;
-        } else {
-            const C = 2.3;
-            const k = 10;
-            const b = -0.1;
-            return Math.exp(-k * Math.pow(manipFactor + b, C));
+    replayData.forEach(([time, error, keyLabel]) => {
+        const timeInMs = time * 1000;
+        if (keyLabel === 0) {
+            key0Data.push({ time: timeInMs, error });
+        } else if (keyLabel === 1) {
+            key1Data.push({ time: timeInMs, error });
+        } else if (keyLabel === 2) {
+            key2Data.push({ time: timeInMs, error });
+        } else if (keyLabel === 3) {
+            key3Data.push({ time: timeInMs, error });
         }
-    }
+    });
+
+    // Calculate deviations
+    const k0to1Deviations = calculateDeviations(key0Data, key1Data);
+    const k1to0Deviations = calculateDeviations(key1Data, key0Data);
+    const k2to3Deviations = calculateDeviations(key2Data, key3Data);
+    const k3to2Deviations = calculateDeviations(key3Data, key2Data);
+
+    // Concatenate yValues for left hand and right hand
+    const y_lh = k0to1Deviations.yValues.concat(k1to0Deviations.yValues);
+    const y_rh = k2to3Deviations.yValues.concat(k3to2Deviations.yValues);
+
+    // Compute manip_factor_left and manip_factor_right as mean of concatenated yValues
+    const manip_factor_left = y_lh.reduce((a, b) => a + b, 0) / y_lh.length;
+    const manip_factor_right = y_rh.reduce((a, b) => a + b, 0) / y_rh.length;
+
+    // Compute total manipFactor as weighted average of left and right hand factors
+    const totalSize = y_lh.length + y_rh.length;
+    const manipFactor = (manip_factor_left * y_lh.length + manip_factor_right * y_rh.length) / totalSize;
+
+    return { manipFactor, leftHandMF: manip_factor_left, rightHandMF: manip_factor_right };
+}
+
 
     // Function to calculate deviations between keys
     function calculateDeviations(keyAData, keyBData) {
@@ -119,7 +93,7 @@
         const k0AvgInterval = filteredDiffA.reduce((sum, diff) => sum + diff, 0) / filteredDiffA.length;
         const k1AvgInterval = filteredDiffB.reduce((sum, diff) => sum + diff, 0) / filteredDiffB.length;
 
-        let avgInterval = k0AvgInterval//(k0AvgInterval + k1AvgInterval) / 2;
+        let avgInterval = (k0AvgInterval + k1AvgInterval) / 2;
         avgInterval /= 2;
 
         sortedKeyAData.forEach(({ time: timeA, error: errorA }) => {
@@ -128,9 +102,9 @@
                 const { time: timeB, error: errorB } = lastKeyBItem;
                 const deviation = (timeA - timeB) / avgInterval;
 
-                if ((deviation > 0) & (deviation <= 1.2)) {
+                if ((deviation > 0) & (deviation <= 1)) {
                     xValues.push(timeA);
-                    yValues.push(deviation > 1 ? 1 : deviation);
+                    yValues.push(deviation);
                 }
             }
         });
