@@ -381,10 +381,14 @@ local function GetManipFactor()
     end
 
     local mfleft = ArithmeticMeanForDeviatons(ldeviations)
+    if mfleft ~= mfleft then mfleft = 0 end
     local maxmfleft = ArithmeticMeanForDeviatons(lmaxdeviations)
+    if maxmfleft ~= maxmfleft then maxmfleft = 0 end
 
     local mfright = ArithmeticMeanForDeviatons(rdeviations)
+    if mfright ~= mfright then mfright = 0 end
     local maxmfright = ArithmeticMeanForDeviatons(rmaxdeviations)
+    if maxmfright ~= maxmfright then maxmfright = 0 end
 
     --max possible total manip factor
     local maxmf = (maxmfleft * lmaxsize + maxmfright * rmaxsize) / (lmaxsize + rmaxsize)
@@ -395,8 +399,14 @@ local function GetManipFactor()
     local lnmf = mfleft / maxmfleft * 0.8
     local rnmf = mfright / maxmfright * 0.8
 
-    if nmf ~= nmf then -- x ~= x means that x == NaN
-        nmf, lnmf, rnmf = 0, 0, 0
+    if nmf ~= nmf then
+        nmf = 0
+    end
+    if lnmf ~= lnmf then
+        lnmf = 0
+    end
+    if rnmf ~= rnmf then
+        rnmf = 0
     end
 
     return {nmf, lnmf, rnmf}
