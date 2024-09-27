@@ -66,8 +66,8 @@
     // Function to calculate deviations between keys
     function calculateDeviations(keyAData, keyBData) {
         const eps = 0.1;
-        const xValues = [0];
-        const yValues = [0];
+        const xValues = [];
+        const yValues = [];
 
         const sortedKeyAData = keyAData.slice().sort((a, b) => a.time - b.time);
         const sortedKeyBData = keyBData.slice().sort((a, b) => a.time - b.time);
