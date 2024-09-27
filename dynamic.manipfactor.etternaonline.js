@@ -87,15 +87,13 @@
             const segmentEnd = segmentStart + segmentDuration;
 
             // Filter diffs within this segment
-            //const segmentDiffA = diffA.filter((diff, idx) => timesA[idx] >= segmentStart && timesA[idx] < segmentEnd);
-            //const segmentDiffB = diffB.filter((diff, idx) => timesB[idx] >= segmentStart && timesB[idx] < segmentEnd);
             const segmentDiffA = diffA.filter((diff, idx) => timesA[idx + 1] >= segmentStart && timesA[idx + 1] < segmentEnd);
             const segmentDiffB = diffB.filter((diff, idx) => timesB[idx + 1] >= segmentStart && timesB[idx + 1] < segmentEnd);
 
 
             // Recalculate percentiles for this segment
-            const nonZeroDiffA = segmentDiffA.filter(diff => diff !== 0);
-            const nonZeroDiffB = segmentDiffB.filter(diff => diff !== 0);
+            const nonZeroDiffA = segmentDiffA.filter(diff => diff !== 0 && diff < segmentDuration);
+            const nonZeroDiffB = segmentDiffB.filter(diff => diff !== 0 && diff < segmentDuration);
 
             const lowerPercentileA = percentile(nonZeroDiffA, 0);
             const upperPercentileA = percentile(nonZeroDiffA, 100);
@@ -114,7 +112,6 @@
             avgIntervals.push(avgInterval); // Store average interval for this segment
         }
 
-        console.log(avgIntervals)
         sortedKeyAData.forEach(({ time: timeA, error: errorA }) => {
             const lastKeyBItem = sortedKeyBData.filter(({ time }) => time < timeA - eps).pop();
             if (lastKeyBItem) {
