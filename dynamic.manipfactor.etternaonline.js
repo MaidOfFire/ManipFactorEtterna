@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      0.1
 // @description  Estimates the amount of manip from the replay data.
-// @author       U1wknUzeU6
+// @author       U1wknUzeU6, OpakyL
 // @match        https://etternaonline.com/*
 // @grant        none
 // ==/UserScript==
@@ -12,6 +12,7 @@
     'use strict';
 
     const scorePagePattern = /^https:\/\/etternaonline\.com\/users\/[^\/]+\/scores\/[^\/]+\/?$/;
+    let locationChangeTimeout;
 
     // Helper function to calculate weighted mean
     function weightedMean(values, weights) {
@@ -20,77 +21,51 @@
         return weightedSum / weightSum;
     }
 
-    // Function to calculate manipulation factor and LH-MF, RH-MF
+    // Function to calculate manipulation factor and Left hand MF, Right hand MF
     function getManipFactor(replayData) {
-        const key0Data = [];
-        const key1Data = [];
-        const key2Data = [];
-        const key3Data = [];
+    const key0Data = [];
+    const key1Data = [];
+    const key2Data = [];
+    const key3Data = [];
 
-        replayData.forEach(([time, error, keyLabel]) => {
-            const timeInMs = time * 1000;
-            if (keyLabel === 0) {
-                key0Data.push({ time: timeInMs, error });
-            } else if (keyLabel === 1) {
-                key1Data.push({ time: timeInMs, error });
-            } else if (keyLabel === 2) {
-                key2Data.push({ time: timeInMs, error });
-            } else if (keyLabel === 3) {
-                key3Data.push({ time: timeInMs, error });
-            }
-        });
-
-        const k0to1Proportions = calculateProportions(key0Data, key1Data);
-        const k1to0Proportions = calculateProportions(key1Data, key0Data);
-        const k2to3Proportions = calculateProportions(key2Data, key3Data);
-        const k3to2Proportions = calculateProportions(key3Data, key2Data);
-
-        const mfk0to1 = k0to1Proportions.yValues.reduce((a, b) => a + b, 0) / k0to1Proportions.yValues.length;
-        const mfk1to0 = k1to0Proportions.yValues.reduce((a, b) => a + b, 0) / k1to0Proportions.yValues.length;
-        const mfk2to3 = k2to3Proportions.yValues.reduce((a, b) => a + b, 0) / k2to3Proportions.yValues.length;
-        const mfk3to2 = k3to2Proportions.yValues.reduce((a, b) => a + b, 0) / k3to2Proportions.yValues.length;
-
-        // LH-MF (Weighted average of 0→1 and 1→0)
-        const leftHandWeights = [
-            k0to1Proportions.yValues.length,
-            k1to0Proportions.yValues.length
-        ];
-        const leftHandMF = weightedMean([mfk0to1, mfk1to0], leftHandWeights);
-
-        // RH-MF (Weighted average of 2→3 and 3→2)
-        const rightHandWeights = [
-            k2to3Proportions.yValues.length,
-            k3to2Proportions.yValues.length
-        ];
-        const rightHandMF = weightedMean([mfk2to3, mfk3to2], rightHandWeights);
-
-        // Overall manip factor
-        const overallWeights = [
-            k0to1Proportions.yValues.length,
-            k1to0Proportions.yValues.length,
-            k2to3Proportions.yValues.length,
-            k3to2Proportions.yValues.length
-        ];
-        const manipFactor = weightedMean([mfk0to1, mfk1to0, mfk2to3, mfk3to2], overallWeights);
-
-        return { manipFactor, leftHandMF, rightHandMF };
-    }
-
-    // Function to calculate ManipScore based on manip factor
-    function manipScoreFunction(manipFactor) {
-        if (manipFactor <= 0.1) {
-            return 1;
-        } else {
-            const C = 2.3;
-            const k = 10;
-            const b = -0.1;
-            return Math.exp(-k * Math.pow(manipFactor + b, C));
+    replayData.forEach(([time, error, keyLabel]) => {
+        const timeInMs = time * 1000;
+        if (keyLabel === 0) {
+            key0Data.push({ time: timeInMs, error });
+        } else if (keyLabel === 1) {
+            key1Data.push({ time: timeInMs, error });
+        } else if (keyLabel === 2) {
+            key2Data.push({ time: timeInMs, error });
+        } else if (keyLabel === 3) {
+            key3Data.push({ time: timeInMs, error });
         }
-    }
+    });
 
-    // Function to calculate proportions between keys
-    function calculateProportions(keyAData, keyBData) {
-        const eps = 1;
+    // Calculate deviations
+    const k0to1Deviations = calculateDeviations(key0Data, key1Data);
+    const k1to0Deviations = calculateDeviations(key1Data, key0Data);
+    const k2to3Deviations = calculateDeviations(key2Data, key3Data);
+    const k3to2Deviations = calculateDeviations(key3Data, key2Data);
+
+    // Concatenate yValues for left hand and right hand
+    const y_lh = k0to1Deviations.yValues.concat(k1to0Deviations.yValues);
+    const y_rh = k2to3Deviations.yValues.concat(k3to2Deviations.yValues);
+
+    // Compute manip_factor_left and manip_factor_right as mean of concatenated yValues
+    const manip_factor_left = y_lh.reduce((a, b) => a + b, 0) / y_lh.length;
+    const manip_factor_right = y_rh.reduce((a, b) => a + b, 0) / y_rh.length;
+
+    // Compute total manipFactor as weighted average of left and right hand factors
+    const totalSize = y_lh.length + y_rh.length;
+    const manipFactor = (manip_factor_left * y_lh.length + manip_factor_right * y_rh.length) / totalSize;
+
+    return { manipFactor, leftHandMF: manip_factor_left, rightHandMF: manip_factor_right };
+}
+
+
+    // Function to calculate deviations between keys
+    function calculateDeviations(keyAData, keyBData) {
+        const eps = 0.1;
         const xValues = [];
         const yValues = [];
 
@@ -102,9 +77,8 @@
 
         const diffA = timesA.slice(1).map((time, index) => time - timesA[index]);
         const diffB = timesB.slice(1).map((time, index) => time - timesB[index]);
-
-        // Split data into 5-second (5000 ms) segments and calculate average interval per segment
-        const segmentDuration = 5000; // 1000 ms for 1-second segments
+        // Split data into 1-second (1000 ms) segments and calculate average interval per segment
+        const segmentDuration = 1000; // 1000 ms for 1-second segments
         const avgIntervals = [];
         const segmentCount = Math.ceil(Math.max(...timesA, ...timesB) / segmentDuration);
 
@@ -113,18 +87,21 @@
             const segmentEnd = segmentStart + segmentDuration;
 
             // Filter diffs within this segment
-            const segmentDiffA = diffA.filter((diff, idx) => timesA[idx] >= segmentStart && timesA[idx] < segmentEnd);
-            const segmentDiffB = diffB.filter((diff, idx) => timesB[idx] >= segmentStart && timesB[idx] < segmentEnd);
+            //const segmentDiffA = diffA.filter((diff, idx) => timesA[idx] >= segmentStart && timesA[idx] < segmentEnd);
+            //const segmentDiffB = diffB.filter((diff, idx) => timesB[idx] >= segmentStart && timesB[idx] < segmentEnd);
+            const segmentDiffA = diffA.filter((diff, idx) => timesA[idx + 1] >= segmentStart && timesA[idx + 1] < segmentEnd);
+            const segmentDiffB = diffB.filter((diff, idx) => timesB[idx + 1] >= segmentStart && timesB[idx + 1] < segmentEnd);
+
 
             // Recalculate percentiles for this segment
             const nonZeroDiffA = segmentDiffA.filter(diff => diff !== 0);
             const nonZeroDiffB = segmentDiffB.filter(diff => diff !== 0);
 
-            const lowerPercentileA = percentile(nonZeroDiffA, 5);
-            const upperPercentileA = percentile(nonZeroDiffA, 95);
+            const lowerPercentileA = percentile(nonZeroDiffA, 0);
+            const upperPercentileA = percentile(nonZeroDiffA, 100);
 
-            const lowerPercentileB = percentile(nonZeroDiffB, 5);
-            const upperPercentileB = percentile(nonZeroDiffB, 95);
+            const lowerPercentileB = percentile(nonZeroDiffB, 0);
+            const upperPercentileB = percentile(nonZeroDiffB, 100);
 
             const filteredDiffA = nonZeroDiffA.filter(diff => diff > lowerPercentileA - eps && diff < upperPercentileA + eps);
             const filteredDiffB = nonZeroDiffB.filter(diff => diff > lowerPercentileB - eps && diff < upperPercentileB + eps);
@@ -137,6 +114,7 @@
             avgIntervals.push(avgInterval); // Store average interval for this segment
         }
 
+        console.log(avgIntervals)
         sortedKeyAData.forEach(({ time: timeA, error: errorA }) => {
             const lastKeyBItem = sortedKeyBData.filter(({ time }) => time < timeA - eps).pop();
             if (lastKeyBItem) {
@@ -144,21 +122,17 @@
                 const segmentIndex = Math.floor(timeA / segmentDuration);
                 const avgInterval = avgIntervals[segmentIndex] || 1; // Fallback to 1 if no interval exists
 
-                const proportion = (errorB - errorA) / avgInterval;
-                const absProportion = Math.abs(proportion);
-                if (absProportion <= 1.5) {
+                const deviation = (errorB - errorA) / avgInterval;
+
+                if ((deviation > 0) & (deviation <= 1.25)) {
                     xValues.push(timeA);
-                    yValues.push(absProportion);
+                    yValues.push(deviation > 1 ? 1 : deviation);
                 }
             }
         });
 
         return { xValues, yValues };
     }
-
-
-
-
 
     // Helper function to calculate percentiles
     function percentile(arr, p) {
@@ -208,7 +182,7 @@
 
                 const manipLabel = document.createElement("div");
                 manipLabel.className = "msd font-small-bold";
-                manipLabel.innerText = "DyMF"; // Label for Manipulation Factor
+                manipLabel.innerText = "dyMF"; // Label for Manipulation Factor
                 manipLabel.style.textAlign = "left"; // Align label to the left
                 manipDiv.appendChild(manipLabel);
 
@@ -229,8 +203,8 @@
 
                 tooltip.innerHTML = `
                     <strong>Details:</strong><br>
-                    LH-MF: ${(leftHandMF * 100).toFixed(2)}%<br>
-                    RH-MF: ${(rightHandMF * 100).toFixed(2)}%
+                    Left Hand: ${(leftHandMF * 100).toFixed(2)}%<br>
+                    Right Hand: ${(rightHandMF * 100).toFixed(2)}%<br>
                 `;
 
                 // Show tooltip on hover
@@ -258,15 +232,46 @@
         });
     };
 
-    // Check if on score page and display ManipScore
-    if (scorePagePattern.test(window.location.href)) {
-        initializeManipScoreDisplay();
+    const initializeWrapper = () => {
+        clearTimeout(locationChangeTimeout);
+        // Set a debounce to prevent multiple callings
+        locationChangeTimeout = setTimeout(() => {
+            if (scorePagePattern.test(window.location.href)) {
+                // Check if on score page and display ManipScore
+                if (scorePagePattern.test(window.location.href)) {
+                    initializeManipScoreDisplay();
+                }
+            }
+        }, 300);
     }
 
-    // Handle navigation on the website
-    window.navigation.addEventListener("navigate", event => {
-        if (scorePagePattern.test(event.destination.url)) {
-            initializeManipScoreDisplay();
-        }
+    // First init of script
+    initializeWrapper();
+
+    // Monkey-patch history methods to detect navigation
+    (function() {
+        const _pushState = history.pushState;
+        const _replaceState = history.replaceState;
+
+        history.pushState = function(state, title, url) {
+            const result = _pushState.apply(this, arguments);
+            window.dispatchEvent(new Event('locationchange'));
+            return result;
+        };
+
+        history.replaceState = function(state, title, url) {
+            const result = _replaceState.apply(this, arguments);
+            window.dispatchEvent(new Event('locationchange'));
+            return result;
+        };
+
+        window.addEventListener('popstate', function() {
+            window.dispatchEvent(new Event('locationchange'));
+        });
+    })();
+
+    // Listen for custom 'locationchange' event
+    window.addEventListener('locationchange', function() {
+        initializeWrapper();
     });
 })();
