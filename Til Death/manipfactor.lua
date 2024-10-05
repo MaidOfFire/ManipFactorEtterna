@@ -1,5 +1,5 @@
---Version: 09.16.24 19:34
---For Til Death
+-- Version: 10.05.24 10:38
+-- For Til Death
 local t = Def.ActorFrame {}
 
 local score = SCOREMAN:GetMostRecentScore()
@@ -31,31 +31,17 @@ local ntt = {} -- note type vector
 -- key data
 local keyData
 
--- deviations for total mf
+-- deviations
 local deviations = {}
-local maxdeviations = {}
+local ldeviations = {}
+local rdeviations = {}
 
-local mf = {} -- manip factor
-
--- filter table by percentiles
+-- Helper function to filter table by percentiles
 local function FilterTable(low, high, x, eps)
     local y = {}
     for i = 1, #x do
         if x[i] > (low - eps) and x[i] < (high + eps) and x[i] ~= 0 then
             table.insert(y, x[i])
-        end
-    end
-    return y
-end
-
--- filter deviations table by time
-local function FilterTableByTime(x, time)
-    local y = {}
-    for i = 1, #x do
-        for k = 1, #x[i] do
-            if x[i][k][1] <= time then
-                table.insert(y, x[i][k])
-            end
         end
     end
     return y
@@ -70,90 +56,63 @@ local function ArithmeticMean(x)
     return sum / #x
 end
 
-local function ArithmeticMeanForDeviatons(x)
-    local sum = 0
-    local count = 0
-    for i = 1, #x do
-        for k = 1, #x[i] do
-            sum = sum + x[i][k][2]
-            count = count + 1
-        end
-    end
-    return sum / count
-end
-
-local function ArithmeticMeanForTimedDeviatons(x)
-    local sum = 0
-    local count = 0
-    for i = 1, #x do
-        for k = 1, #x[i] do
-            sum = sum + x[i][k][2]
-            count = count + 1
-        end
-    end
-    return sum / count
-end
-
--- Helper function to calculate Weighted Mean
-local function WeightedMean(x, w)
-    local sump = 0
+-- Helper function to calculate Arithmetic Mean for deviations
+local function ArithmeticMeanForDeviations(x)
+    if #x == 0 then return 0 end
     local sum = 0
     for i = 1, #x do
-        sump = sump + (x[i] * w[i])
-        sum = sum + w[i]
+        sum = sum + x[i][2]
     end
-    return sump / sum
+    return sum / #x
 end
 
--- Helper function to calculate the 5th and 95th percentiles
-local function Percentile(sortedArray, p)
-    local index = (p / 100) * (#sortedArray - 1) + 1
-    local lowerBound = math.floor(index)
-    local upperBound = math.ceil(index)
-    local fracPart = index - lowerBound
+-- Helper function to calculate percentiles
+local function Percentile(arr, p)
+    if #arr == 0 then return 0 end
+    table.sort(arr)
+    local index = (p / 100) * (#arr - 1) + 1
+    local lower = math.floor(index)
+    local upper = lower + 1
+    local weight = index % 1
 
-    if fracPart == 0 then
-        return sortedArray[lowerBound]
+    if upper > #arr then
+        return arr[#arr]
     else
-        return sortedArray[lowerBound] + fracPart * (sortedArray[upperBound] - sortedArray[lowerBound])
+        return arr[lower] * (1 - weight) + arr[upper] * weight
     end
 end
 
 -- mf value to hsv color
 local function byMF(x)
-    if x > 0.4 then
-        x = 0.4
-    end
-    -- Calculate the hue from 0 (green) to 1 (red)
-    local hue = 120 - (x * 120) -- 120 to 0 degrees
+    local hue = math.max(0, 120 - (x * 300)) -- hue from green to red
     local saturation = 0.9 -- Full saturation
     local brightness = 0.9 -- Full brightness
 
     return HSV(hue, saturation, brightness)
 end
 
-local function GetMaxTrack() -- copied from 00 Utility.lua
-	local keys = {
-		StepsType_Dance_Threepanel = 3,
-		StepsType_Dance_Single = 4,
-		StepsType_Pump_Single = 5,
-		StepsType_Pnm_Five = 5,
-		StepsType_Pump_Halfdouble = 6,
-		StepsType_Bm_Single5 = 6,
-		StepsType_Dance_Solo = 6,
-		StepsType_Kb7_Single = 7,
-		StepsType_Bm_Single7 = 8,
-		StepsType_Dance_Double = 8,
-		StepsType_Pnm_Nine = 9,
-		StepsType_Pump_Double = 10,
-		StepsType_Bm_Double5 = 12,
-		StepsType_Bm_Double7 = 16,
-	}
-	local stepstype = GAMESTATE:GetCurrentSteps():GetStepsType()
-	return keys[stepstype]
+-- Function to get the maximum number of tracks (keys)
+local function GetMaxTrack()
+    local keys = {
+        StepsType_Dance_Threepanel = 3,
+        StepsType_Dance_Single = 4,
+        StepsType_Pump_Single = 5,
+        StepsType_Pnm_Five = 5,
+        StepsType_Pump_Halfdouble = 6,
+        StepsType_Bm_Single5 = 6,
+        StepsType_Dance_Solo = 6,
+        StepsType_Kb7_Single = 7,
+        StepsType_Bm_Single7 = 8,
+        StepsType_Dance_Double = 8,
+        StepsType_Pnm_Nine = 9,
+        StepsType_Pump_Double = 10,
+        StepsType_Bm_Double5 = 12,
+        StepsType_Bm_Double7 = 16,
+    }
+    local stepstype = GAMESTATE:GetCurrentSteps():GetStepsType()
+    return keys[stepstype]
 end
 
--- im sorry
 local function FindKeyPairs(keymode)
     local keyPairs = {}
     for i = 0, keymode - 1 do
@@ -224,112 +183,142 @@ local function GetHand(track, keymode)
 end
 
 -- Generate key data
-local function GenerateKeyData(offsetVector, timingVector, trackVector, tntypeVector)
+local function GenerateKeyData(offsetVector, timingVector, trackVector, tapNoteTypeVector)
     local keyData = {}
     for i = 1, #offsetVector do
-        if true then
+        if tapNoteTypeVector[i] ~= "TapNoteType_Mine" and tapNoteTypeVector[i] ~= "TapNoteType_HoldTail" then
             table.insert(keyData, {timingVector[i], offsetVector[i], trackVector[i]})
         end
     end
     return keyData
 end
 
--- Function to calculate deviations
+-- Function to calculate deviations with dynamic intervals (splitting into 1000 ms chunks)
 local function CalculateDeviations(keyAData, keyBData)
-    if keyAData and keyBData then
-        local eps = 0.1
-        local deviations = {}
-        local maxdeviations = {}
+    if #keyAData < 2 or #keyBData < 2 then return {} end
+    local eps = 0.1
+    local deviations = {}
 
-        -- Extract time values from key data
-        local timesA = {}
-        local timesB = {}
-        for i = 1, #keyAData do
-            table.insert(timesA, keyAData[i][1])
-        end
-        for i = 1, #keyBData do
-            table.insert(timesB, keyBData[i][1])
-        end
-
-        -- Sort the note times for both keys
-        table.sort(timesA)
-        table.sort(timesB)
-
-        -- Compute differences between sorted note times
-        local diffA = {}
-        local diffB = {}
-        for i = 2, #timesA do
-            local diff = timesA[i] - timesA[i - 1]
-            if diff ~= 0 then
-                table.insert(diffA, diff)
-            end
-        end
-        for i = 2, #timesB do
-            local diff = timesB[i] - timesB[i - 1]
-            if diff ~= 0 then
-                table.insert(diffB, diff)
-            end
-        end
-
-        -- Calculate percentiles (5th and 95th) for both columns
-        table.sort(diffA)
-        table.sort(diffB)
-
-        local lowerPercentileA = Percentile(diffA, 5)
-        local upperPercentileA = Percentile(diffA, 95)
-        local lowerPercentileB = Percentile(diffB, 5)
-        local upperPercentileB = Percentile(diffB, 95)
-
-        -- Filter differences outside the 5th and 95th percentiles
-        local filteredDiffA = FilterTable(lowerPercentileA, upperPercentileA, diffA, eps)
-        local filteredDiffB = FilterTable(lowerPercentileB, upperPercentileB, diffB, eps)
-
-        -- Calculate arithmetic mean of filtered differences for A and B columns
-        local k0AvgInterval = ArithmeticMean(filteredDiffA)
-        local k1AvgInterval = ArithmeticMean(filteredDiffB)
-
-        -- Average of averages
-        local avgInterval = (k0AvgInterval + k1AvgInterval) / 2
-        -- Halve the interval (for trills)
-        avgInterval = avgInterval / 2
-
-        table.sort(keyAData, function(a, b) return a[1] < b[1] end)
-        table.sort(keyBData, function(a, b) return a[1] < b[1] end)
-        -- Calculate deviations
-        local finder = 1
-        for i = 1, #keyAData do
-            local timeA, errorA = keyAData[i][1], keyAData[i][2]
-
-            -- Find the closest previous note in keyBData
-            local lastKeyBItem
-            for j = finder, #keyBData do
-                if keyBData[j][1] < (timeA - eps) then
-                    lastKeyBItem = keyBData[j]
-                    finder = j
-                else
-                    break
-                end
-            end
-
-            -- Add deviations if conditions are met
-            if lastKeyBItem then
-                local timeB, errorB = lastKeyBItem[1], lastKeyBItem[2]
-                local deviation = (errorB - errorA) / avgInterval
-                local maxdeviation = (timeA - timeB) / avgInterval
-                if maxdeviation > 0 and maxdeviation <= 1 then
-                    table.insert(maxdeviations, {timeA, maxdeviation})
-                end
-                if deviation > 0 and deviation <= 1.25 then
-                    if deviation > 1 then deviation = 1 end
-                    table.insert(deviations, {timeA, deviation})
-                end
-            end
-        end
-
-        return {deviations, maxdeviations}
-    else
-        return {0}
+    -- Extract time values from key data
+    local timesA = {}
+    local timesB = {}
+    for i = 1, #keyAData do
+        timesA[i] = keyAData[i][1]
     end
+    for i = 1, #keyBData do
+        timesB[i] = keyBData[i][1]
+    end
+
+    -- Sort the note times for both keys
+    table.sort(timesA)
+    table.sort(timesB)
+
+    -- Compute differences between sorted note times
+    local diffA = {}
+    local diffB = {}
+    for i = 2, #timesA do
+        local diff = timesA[i] - timesA[i - 1]
+        if diff ~= 0 then
+            diffA[#diffA + 1] = diff
+        end
+    end
+    for i = 2, #timesB do
+        local diff = timesB[i] - timesB[i - 1]
+        if diff ~= 0 then
+            diffB[#diffB + 1] = diff
+        end
+    end
+
+    -- Split data into 1-second (1000 ms) segments and calculate average interval per segment
+    local segmentDuration = 1000 -- in ms
+    local maxTime = math.max(timesA[#timesA] or 0, timesB[#timesB] or 0)
+    local segmentCount = math.ceil(maxTime / segmentDuration)
+
+    local avgIntervals = {}
+
+    for i = 1, segmentCount do
+        local segmentStart = (i - 1) * segmentDuration
+        local segmentEnd = segmentStart + segmentDuration
+
+        -- Filter diffs within this segment
+        local segmentDiffA = {}
+        local segmentDiffB = {}
+
+        for idx = 1, #diffA do
+            if timesA[idx + 1] >= segmentStart and timesA[idx + 1] < segmentEnd then
+                local diff = diffA[idx]
+                if diff ~= 0 and diff < segmentDuration then
+                    table.insert(segmentDiffA, diff)
+                end
+            end
+        end
+
+        for idx = 1, #diffB do
+            if timesB[idx + 1] >= segmentStart and timesB[idx + 1] < segmentEnd then
+                local diff = diffB[idx]
+                if diff ~= 0 and diff < segmentDuration then
+                    table.insert(segmentDiffB, diff)
+                end
+            end
+        end
+
+        -- Recalculate percentiles for this segment
+        local nonZeroDiffA = segmentDiffA
+        local nonZeroDiffB = segmentDiffB
+
+        local lowerPercentileA = Percentile(nonZeroDiffA, 0)
+        local upperPercentileA = Percentile(nonZeroDiffA, 100)
+
+        local lowerPercentileB = Percentile(nonZeroDiffB, 0)
+        local upperPercentileB = Percentile(nonZeroDiffB, 100)
+
+        local filteredDiffA = FilterTable(lowerPercentileA, upperPercentileA, nonZeroDiffA, eps)
+        local filteredDiffB = FilterTable(lowerPercentileB, upperPercentileB, nonZeroDiffB, eps)
+
+        -- Calculate average intervals and divide by 2
+        local k0AvgInterval = #filteredDiffA > 0 and ArithmeticMean(filteredDiffA) or 0
+        local k1AvgInterval = #filteredDiffB > 0 and ArithmeticMean(filteredDiffB) or 0
+
+        local avgInterval = ((k0AvgInterval + k1AvgInterval) / 2) / 2
+        avgIntervals[i] = avgInterval -- Store average interval for this segment
+    end
+
+    -- Now compute deviations using avgInterval per segment
+    table.sort(keyAData, function(a, b) return a[1] < b[1] end)
+    table.sort(keyBData, function(a, b) return a[1] < b[1] end)
+
+    local finder = 1
+    for i = 1, #keyAData do
+        local timeA, errorA = keyAData[i][1], keyAData[i][2]
+
+        -- Find the closest previous note in keyBData
+        local lastKeyBItem
+        for j = finder, #keyBData do
+            if keyBData[j][1] < (timeA - eps) then
+                lastKeyBItem = keyBData[j]
+                finder = j
+            else
+                break
+            end
+        end
+
+        -- Add deviations if conditions are met
+        if lastKeyBItem then
+            local errorB = lastKeyBItem[2]
+            local segmentIndex = math.floor(timeA / segmentDuration) + 1
+            local avgInterval = avgIntervals[segmentIndex] or 1 -- Fallback to 1 if no interval exists
+
+            local deviation = (errorB - errorA) / avgInterval
+
+            -- Adjust conditions for accepting deviations
+            if deviation > 0 and deviation <= 1.25 then
+                local yValue = deviation > 1 and 1 or deviation
+                table.insert(deviations, {timeA, yValue})
+            end
+        end
+    end
+
+    return deviations
 end
 
 -- Get manip factor based on key comparisons
@@ -337,92 +326,82 @@ local function GetManipFactor()
     -- Generate data for all keys
     keyData = GenerateKeyData(dvt, wuab, ctt, ntt)
 
-    -- get key mode and all possible key pairs excluding middle key for keymods with odd keycount
+    -- Get key mode and specific key pairs
     local keymode = GetMaxTrack()
     local keyPairs = FindKeyPairs(keymode)
 
-    local ldeviations = {}
-    local lmaxdeviations = {}
-    local lsize = 0
-    local lmaxsize = 0
-
-    local rdeviations = {}
-    local rmaxdeviations = {}
-    local rsize = 0
-    local rmaxsize = 0
+    deviations = {}
+    ldeviations = {}
+    rdeviations = {}
 
     for i = 1, #keyPairs do
+        local keyA = keyPairs[i][1]
+        local keyB = keyPairs[i][2]
+        local hand = GetHand(keyA, keymode)
+
         local keyAData = {}
         local keyBData = {}
-        local hand = GetHand(keyPairs[i][1], keymode)
+
         for j = 1, #keyData do
-            if keyPairs[i][1] == keyData[j][3] then
+            if keyData[j][3] == keyA then
                 table.insert(keyAData, keyData[j])
-            elseif keyPairs[i][2] == keyData[j][3] then
+            elseif keyData[j][3] == keyB then
                 table.insert(keyBData, keyData[j])
             end
         end
-        if #keyAData >= 2 and #keyBData >= 2 then
-            local temp = CalculateDeviations(keyAData, keyBData)
-            local deviation = temp[1]
-            local maxdeviation = temp[2]
+
+        local deviation = CalculateDeviations(keyAData, keyBData)
+        if #deviation > 0 then
+            -- Collect all deviations for total MF calculation
+            for d = 1, #deviation do
+                table.insert(deviations, deviation[d])
+            end
+
+            -- Collect deviations for left or right hand
             if hand == "left" then
-                table.insert(ldeviations, deviation)
-                lsize = lsize + #deviation
-                table.insert(lmaxdeviations, maxdeviation)
-                lmaxsize = lsize + #maxdeviation
+                for d = 1, #deviation do
+                    table.insert(ldeviations, deviation[d])
+                end
             elseif hand == "right" then
-                table.insert(rdeviations, deviation)
-                rsize = rsize + #deviation
-                table.insert(rmaxdeviations, maxdeviation)
-                rmaxsize = rsize + #maxdeviation
+                for d = 1, #deviation do
+                    table.insert(rdeviations, deviation[d])
+                end
             end
         end
     end
 
-    local mfleft = ArithmeticMeanForDeviatons(ldeviations)
-    if mfleft ~= mfleft then mfleft = 0 end
-    local maxmfleft = ArithmeticMeanForDeviatons(lmaxdeviations)
-    if maxmfleft ~= maxmfleft then maxmfleft = 0 end
+    -- Compute manip_factor_left as mean of all left hand deviations
+    local manip_factor_left = ArithmeticMeanForDeviations(ldeviations)
 
-    local mfright = ArithmeticMeanForDeviatons(rdeviations)
-    if mfright ~= mfright then mfright = 0 end
-    local maxmfright = ArithmeticMeanForDeviatons(rmaxdeviations)
-    if maxmfright ~= maxmfright then maxmfright = 0 end
+    -- Compute manip_factor_right as mean of all right hand deviations
+    local manip_factor_right = ArithmeticMeanForDeviations(rdeviations)
 
-    --max possible total manip factor
-    local maxmf = (maxmfleft * lmaxsize + maxmfright * rmaxsize) / (lmaxsize + rmaxsize)
-    -- Final manip factor
-    local mft = (mfleft * lsize + mfright * rsize) / (lsize + rsize)
+    -- Total number of deviations for left and right hands
+    local y_lh_count = #ldeviations
+    local y_rh_count = #rdeviations
+    local total_count = y_lh_count + y_rh_count
 
-    local nmf = mft / maxmf * 0.8
-    local lnmf = mfleft / maxmfleft * 0.8
-    local rnmf = mfright / maxmfright * 0.8
+    -- Compute total manip factor as weighted average
+    local mftotal = total_count > 0 and ((manip_factor_left * y_lh_count + manip_factor_right * y_rh_count) / total_count) or 0
 
-    if nmf ~= nmf then
-        nmf = 0
-    end
-    if lnmf ~= lnmf then
-        lnmf = 0
-    end
-    if rnmf ~= rnmf then
-        rnmf = 0
+    if mftotal ~= mftotal then -- x ~= x means that x == NaN
+        mftotal, manip_factor_left, manip_factor_right = 0, 0, 0
     end
 
-    return {nmf, lnmf, rnmf}
+    return {mftotal, manip_factor_left, manip_factor_right}
 end
 
 -- Get manip factor based on key comparisons and row time
 function GetManipFactorForRow(time)
-    local mfs = {}
-    local mfsw = {}
-
-    table.insert(mfs, ArithmeticMeanForTimedDeviatons(FilterTableByTime(deviations, time)))
-    for i = 1, #mfs do
-        table.insert(mfsw, #mfs)
+    -- Collect deviations up to the given time
+    local totalDeviations = {}
+    for i = 1, #deviations do
+        if deviations[i][1] <= time then
+            table.insert(totalDeviations, deviations[i])
+        end
     end
 
-    local mftotal = WeightedMean(mfs, mfsw)
+    local mftotal = ArithmeticMeanForDeviations(totalDeviations)
 
     if mftotal ~= mftotal then -- x ~= x means that x == NaN
         mftotal = 0
@@ -431,7 +410,6 @@ function GetManipFactorForRow(time)
     return mftotal
 end
 
--- Manip factor display
 t[#t + 1] = Def.ActorFrame {
     -- First Text Element (Either "MF" or "MF:")
     UIElements.TextToolTip(1, 1, "Common Large") .. {
@@ -443,23 +421,26 @@ t[#t + 1] = Def.ActorFrame {
                 -- In aspect ratio less than 1.6, "number% MF"
                 self:addx(3)
                 self:halign(0)
-                self:settext("nMF")
+                self:settext("dyMF")
             else
                 -- In aspect ratio greater or equal to 1.6, "MF: number%"
                 self:halign(1)
-                self:settext("nMF:")
+                self:settext("dyMF:")
             end
         end,
         MouseOverCommand = function(self)
             local mfd = self:GetParent():GetChild("ManipFactor")
+            local mf_values = mfd.mf or {0, 0, 0}
             if aspectRatio < 1.6 then
-                mfd:GetParent():GetChild("ManipFactor"):settextf("(L: %2.3f%% R: %2.3f%%) %2.3f%%", mf[2] * 100, mf[3] * 100, mf[1] * 100)
+                mfd:settextf("(L: %2.1f%% R: %2.1f%%) %2.1f%%", mf_values[2] * 100, mf_values[3] * 100, mf_values[1] * 100)
             else
-                mfd:GetParent():GetChild("ManipFactor"):settextf("%2.3f%% (L: %2.3f%% R: %2.3f%%)", mf[1] * 100, mf[2] * 100, mf[3] * 100)
+                mfd:settextf("%2.1f%% (L: %2.1f%% R: %2.1f%%)", mf_values[1] * 100, mf_values[2] * 100, mf_values[3] * 100)
             end
         end,
         MouseOutCommand = function(self)
-            self:GetParent():GetChild("ManipFactor"):settextf("%2.3f%%", mf[1] * 100)
+            local mfd = self:GetParent():GetChild("ManipFactor")
+            local mf_values = mfd.mf or {0, 0, 0}
+            mfd:settextf("%2.1f%%", mf_values[1] * 100)
         end
     },
     -- Second Text Element (ManipFactor Value)
@@ -500,25 +481,29 @@ t[#t + 1] = Def.ActorFrame {
             nrt = replay:GetNoteRowVector()
             ntt = replay:GetTapNoteTypeVector()
             -- Convert noterows to timing in ms
+            wuab = {}
             for i = 1, #nrt do
                 wuab[i] = td:GetElapsedTimeFromNoteRow(nrt[i]) / rate * 1000
             end
             --------------------
 
-            mf = GetManipFactor()
+            local mf_values = GetManipFactor()
+            self.mf = mf_values -- Store mf in self for access in MouseOverCommand
 
-            self:diffuse(byMF(mf[1]))
-            self:settextf("%2.3f%%", mf[1] * 100)
+            self:diffuse(byMF(mf_values[1]))
+            self:settextf("%2.1f%%", mf_values[1] * 100)
         end,
         MouseOverCommand = function(self)
+            local mf_values = self.mf or {0, 0, 0}
             if aspectRatio < 1.6 then
-                self:settextf("(L: %2.3f%% R: %2.3f%%) %2.3f%%", mf[2] * 100, mf[3] * 100, mf[1] * 100)
+                self:settextf("(L: %2.1f%% R: %2.1f%%) %2.1f%%", mf_values[2] * 100, mf_values[3] * 100, mf_values[1] * 100)
             else
-                self:settextf("%2.3f%% (L: %2.3f%% R: %2.3f%%)", mf[1] * 100, mf[2] * 100, mf[3] * 100)
+                self:settextf("%2.1f%% (L: %2.1f%% R: %2.1f%%)", mf_values[1] * 100, mf_values[2] * 100, mf_values[3] * 100)
             end
         end,
         MouseOutCommand = function(self)
-            self:settextf("%2.3f%%", mf[1] * 100)
+            local mf_values = self.mf or {0, 0, 0}
+            self:settextf("%2.1f%%", mf_values[1] * 100)
         end
     }
 }
