@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         value-Adjusted Dynamic ManipFactor for EtternaOnline
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.4
 // @description  Estimates the amount of manip from the replay data using normalized unimportance values.
 // @author
 // @match        https://etternaonline.com/*
@@ -139,33 +139,35 @@
             return { xValues, yValues, wValues: [] };
         }
 
-        const unimportanceValues = unimportances.slice(); // Copy of unimportances
-        const p5 = percentile(unimportanceValues, 1);
-        const p95 = percentile(unimportanceValues, 90);
+        const unimportanceValues = unimportances.slice();
+        const p5 = percentile(unimportanceValues, 5);
+        const p95 = percentile(unimportanceValues, 80);
 
-        // Avoid p95 == p5 which would cause division by zero
         if (p95 === p5) {
-            p95 += 1e-6; // Add a small value to p95
+            p95 += 1e-6; // Avoid division by zero
         }
 
-        // Normalize unimportance values to [0, 1] using p5 and p95
+        // Normalize unimportance values to [0, 1]
         const normalizedUnimportances = unimportances.map(u => {
             let norm = (u - p5) / (p95 - p5);
             norm = Math.max(0, Math.min(norm, 1)); // Clamp between 0 and 1
             return norm;
         });
 
-        // Apply the weighting function directly to normalized unimportances
-        const desired_peak = 0; // Adjust as needed
-        const total_exponent = 2; // Adjust to control sharpness
-        const a = desired_peak * total_exponent;
-        const b = (1 - desired_peak) * total_exponent;
-        const f = x => Math.pow(x, a) * Math.pow(1 - x, b);
+        // Apply sigmoid function
+        const desired_peak = 0.5; // Adjust as needed (between 0 and 1)
+        const steepness = 10; // Adjust steepness (higher value = sharper transition)
+        const k = steepness;
+        const x0 = desired_peak;
+        const f = x => 1 / (1 + Math.exp(k * (x - x0)));
 
         const weights = normalizedUnimportances.map(f);
 
         // Normalize weights to sum to 1
         const weightSum = weights.reduce((acc, w) => acc + w, 0);
+        if (weightSum === 0) {
+            return { xValues, yValues, wValues: [] };
+        }
         const normalizedWeights = weights.map(w => w / weightSum);
 
         // Store weights in wValues
