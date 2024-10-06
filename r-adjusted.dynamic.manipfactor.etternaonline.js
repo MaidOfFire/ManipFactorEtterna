@@ -146,23 +146,20 @@
         // Normalize ranks to [0, 1]
         const x = ranks.map(rank => (rank - 1) / (N - 1));
 
-        // Apply bell-shaped function with adjustable peak position
-        const desired_peak = 0.15; // Adjust this value between 0 and 1 to control peak position
-        const total_exponent = 2;  // Adjust to control sharpness (higher value = sharper peak)
-
-        // Ensure total_exponent is positive
-        const totalExponent = Math.max(total_exponent, 1e-6);
-
-        const a = desired_peak * totalExponent;
-        const b = (1 - desired_peak) * totalExponent;
-
-        // Define the weight function
-        const f = x => Math.pow(x, a) * Math.pow(1 - x, b);
+        // Apply bell-shaped function with adjustable peak position// Apply sigmoid function
+        const desired_peak = 0.5; // Adjust as needed (between 0 and 1)
+        const steepness = 10; // Adjust steepness (higher value = sharper transition)
+        const k = steepness;
+        const x0 = desired_peak;
+        const f = x => 1 / (1 + Math.exp(k * (x - x0)));
 
         const weights = x.map(f);
 
         // Normalize weights to sum to 1
         const weightSum = weights.reduce((acc, w) => acc + w, 0);
+        if (weightSum === 0) {
+            return { xValues, yValues, wValues: [] };
+        }
         const normalizedWeights = weights.map(w => w / weightSum);
         console.log('Weights:', normalizedWeights);
 
