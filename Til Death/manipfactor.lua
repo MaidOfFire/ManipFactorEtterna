@@ -1,4 +1,4 @@
--- Version: 10.05.24 10:38
+-- Version: 10.07.24 22:05 JST
 -- For Til Death
 local t = Def.ActorFrame {}
 
@@ -17,7 +17,7 @@ if aspectRatio < 1.6 then
     mfDisplayX = SCREEN_RIGHT - 30
     mfDisplayY = SCREEN_CENTER_Y + 66
 else
-    mfDisplayX = SCREEN_LEFT + 42
+    mfDisplayX = SCREEN_LEFT + 50
     mfDisplayY = 350
 end
 
@@ -35,6 +35,8 @@ local keyData
 local deviations = {}
 local ldeviations = {}
 local rdeviations = {}
+local lweights = {}
+local rweights = {}
 
 -- Helper function to filter table by percentiles
 local function FilterTable(low, high, x, eps)
@@ -64,6 +66,18 @@ local function ArithmeticMeanForDeviations(x)
         sum = sum + x[i][2]
     end
     return sum / #x
+end
+
+-- Helper function to calculate Weighted Mean for deviations
+local function WeightedMeanForDeviations(deviations, weights)
+    if #deviations == 0 then return 0 end
+    local sum = 0
+    local weightSum = 0
+    for i = 1, #deviations do
+        sum = sum + deviations[i][2] * weights[i]
+        weightSum = weightSum + weights[i]
+    end
+    return sum / weightSum
 end
 
 -- Helper function to calculate percentiles
@@ -144,6 +158,7 @@ local function FindKeyPairs(keymode)
                     table.insert(keyPairs, {math.floor(i), math.floor(j)})
                 end
             elseif i == keymode / 2 - 0.5 then
+                -- Middle key, skip pairing
             elseif i == keymode - 1 then
                 for j = keymode - 2, keymode / 2 + 0.5, -1 do
                     table.insert(keyPairs, {math.floor(i), math.floor(j)})
@@ -195,9 +210,10 @@ end
 
 -- Function to calculate deviations with dynamic intervals (splitting into 1000 ms chunks)
 local function CalculateDeviations(keyAData, keyBData)
-    if #keyAData < 2 or #keyBData < 2 then return {} end
+    if #keyAData < 2 or #keyBData < 2 then return {}, {} end
     local eps = 0.1
     local deviations = {}
+    local unimportances = {} -- Store avgInterval for each deviation
 
     -- Extract time values from key data
     local timesA = {}
@@ -279,7 +295,7 @@ local function CalculateDeviations(keyAData, keyBData)
         local k0AvgInterval = #filteredDiffA > 0 and ArithmeticMean(filteredDiffA) or 0
         local k1AvgInterval = #filteredDiffB > 0 and ArithmeticMean(filteredDiffB) or 0
 
-        local avgInterval = ((k0AvgInterval + k1AvgInterval) / 2) / 2
+        local avgInterval = (math.min(k0AvgInterval, k1AvgInterval) / 2)
         avgIntervals[i] = avgInterval -- Store average interval for this segment
     end
 
@@ -314,11 +330,64 @@ local function CalculateDeviations(keyAData, keyBData)
             if deviation > 0 and deviation <= 1.25 then
                 local yValue = deviation > 1 and 1 or deviation
                 table.insert(deviations, {timeA, yValue})
+                table.insert(unimportances, avgInterval) -- Collect unimportance for this deviation
             end
         end
     end
 
-    return deviations
+    -- Now compute weights based on unimportances using 5th and 80th percentiles
+    if #unimportances == 0 then
+        -- Avoid division by zero if no unimportances are collected
+        return deviations, {}
+    end
+
+    local unimportanceValues = {}
+    for i = 1, #unimportances do
+        unimportanceValues[i] = unimportances[i]
+    end
+    local p5 = Percentile(unimportanceValues, 5)
+    local p95 = Percentile(unimportanceValues, 80)
+
+    if p95 == p5 then
+        p95 = p95 + 1e-6 -- Avoid division by zero
+    end
+
+    -- Normalize unimportance values to [0, 1]
+    local normalizedUnimportances = {}
+    for i = 1, #unimportances do
+        local norm = (unimportances[i] - p5) / (p95 - p5)
+        norm = math.max(0, math.min(norm, 1)) -- Clamp between 0 and 1
+        normalizedUnimportances[i] = norm
+    end
+
+    -- Apply sigmoid function
+    local desired_peak = 0.5 -- Adjust as needed (between 0 and 1)
+    local steepness = 10 -- Adjust steepness (higher value = sharper transition)
+    local k = steepness
+    local x0 = desired_peak
+    local function f(x)
+        return 1 / (1 + math.exp(k * (x - x0)))
+    end
+
+    local weights = {}
+    for i = 1, #normalizedUnimportances do
+        weights[i] = f(normalizedUnimportances[i])
+    end
+
+    -- Normalize weights to sum to 1
+    local weightSum = 0
+    for i = 1, #weights do
+        weightSum = weightSum + weights[i]
+    end
+    if weightSum == 0 then
+        return deviations, {}
+    end
+    local normalizedWeights = {}
+    for i = 1, #weights do
+        normalizedWeights[i] = weights[i] / weightSum
+    end
+
+    return deviations, normalizedWeights
 end
 
 -- Get manip factor based on key comparisons
@@ -333,6 +402,8 @@ local function GetManipFactor()
     deviations = {}
     ldeviations = {}
     rdeviations = {}
+    lweights = {}
+    rweights = {}
 
     for i = 1, #keyPairs do
         local keyA = keyPairs[i][1]
@@ -350,45 +421,65 @@ local function GetManipFactor()
             end
         end
 
-        local deviation = CalculateDeviations(keyAData, keyBData)
+        local deviation, weights = CalculateDeviations(keyAData, keyBData)
         if #deviation > 0 then
-            -- Collect all deviations for total MF calculation
+            -- Collect deviations for total MF calculation
             for d = 1, #deviation do
                 table.insert(deviations, deviation[d])
             end
 
-            -- Collect deviations for left or right hand
+            -- Collect deviations and weights for left or right hand
             if hand == "left" then
                 for d = 1, #deviation do
                     table.insert(ldeviations, deviation[d])
+                    table.insert(lweights, weights[d])
                 end
             elseif hand == "right" then
                 for d = 1, #deviation do
                     table.insert(rdeviations, deviation[d])
+                    table.insert(rweights, weights[d])
                 end
             end
         end
     end
 
-    -- Compute manip_factor_left as mean of all left hand deviations
-    local manip_factor_left = ArithmeticMeanForDeviations(ldeviations)
-
-    -- Compute manip_factor_right as mean of all right hand deviations
-    local manip_factor_right = ArithmeticMeanForDeviations(rdeviations)
-
-    -- Total number of deviations for left and right hands
+    -- Compute original manip factors (arithmetic mean)
+    local manip_factor_left_original = ArithmeticMeanForDeviations(ldeviations)
+    local manip_factor_right_original = ArithmeticMeanForDeviations(rdeviations)
     local y_lh_count = #ldeviations
     local y_rh_count = #rdeviations
     local total_count = y_lh_count + y_rh_count
+    local mftotal_original = total_count > 0 and ((manip_factor_left_original * y_lh_count + manip_factor_right_original * y_rh_count) / total_count) or 0
 
-    -- Compute total manip factor as weighted average
-    local mftotal = total_count > 0 and ((manip_factor_left * y_lh_count + manip_factor_right * y_rh_count) / total_count) or 0
+    -- Compute weighted manip factors
+    local manip_factor_left_weighted = WeightedMeanForDeviations(ldeviations, lweights)
+    local manip_factor_right_weighted = WeightedMeanForDeviations(rdeviations, rweights)
 
-    if mftotal ~= mftotal then -- x ~= x means that x == NaN
-        mftotal, manip_factor_left, manip_factor_right = 0, 0, 0
+    local totalWeightLeft = 0
+    for i = 1, #lweights do
+        totalWeightLeft = totalWeightLeft + lweights[i]
     end
 
-    return {mftotal, manip_factor_left, manip_factor_right}
+    local totalWeightRight = 0
+    for i = 1, #rweights do
+        totalWeightRight = totalWeightRight + rweights[i]
+    end
+
+    local totalWeight = totalWeightLeft + totalWeightRight
+    local mftotal_weighted = totalWeight > 0 and ((manip_factor_left_weighted * totalWeightLeft + manip_factor_right_weighted * totalWeightRight) / totalWeight) or 0
+
+    if mftotal_original ~= mftotal_original then -- x ~= x means that x == NaN
+        mftotal_original, manip_factor_left_original, manip_factor_right_original = 0, 0, 0
+    end
+
+    if mftotal_weighted ~= mftotal_weighted then -- x ~= x means that x == NaN
+        mftotal_weighted, manip_factor_left_weighted, manip_factor_right_weighted = 0, 0, 0
+    end
+
+    return {
+        original = {mftotal_original, manip_factor_left_original, manip_factor_right_original},
+        weighted = {mftotal_weighted, manip_factor_left_weighted, manip_factor_right_weighted}
+    }
 end
 
 -- Get manip factor based on key comparisons and row time
@@ -421,26 +512,26 @@ t[#t + 1] = Def.ActorFrame {
                 -- In aspect ratio less than 1.6, "number% MF"
                 self:addx(3)
                 self:halign(0)
-                self:settext("dyMF")
+                self:settext("dMF")
             else
                 -- In aspect ratio greater or equal to 1.6, "MF: number%"
                 self:halign(1)
-                self:settext("dyMF:")
+                self:settext("dMF:")
             end
         end,
         MouseOverCommand = function(self)
             local mfd = self:GetParent():GetChild("ManipFactor")
-            local mf_values = mfd.mf or {0, 0, 0}
+            local mf_values = mfd.mf or {original = {0, 0, 0}, weighted = {0, 0, 0}}
             if aspectRatio < 1.6 then
-                mfd:settextf("(L: %2.1f%% R: %2.1f%%) %2.1f%%", mf_values[2] * 100, mf_values[3] * 100, mf_values[1] * 100)
+                mfd:settextf("(L: %2.1f%% R: %2.1f%%) %2.1f%%", mf_values.original[2] * 100, mf_values.original[3] * 100, mf_values.original[1] * 100)
             else
-                mfd:settextf("%2.1f%% (L: %2.1f%% R: %2.1f%%)", mf_values[1] * 100, mf_values[2] * 100, mf_values[3] * 100)
+                mfd:settextf("%2.1f%% (L: %2.1f%% R: %2.1f%%)", mf_values.original[1] * 100, mf_values.original[2] * 100, mf_values.original[3] * 100)
             end
         end,
         MouseOutCommand = function(self)
             local mfd = self:GetParent():GetChild("ManipFactor")
-            local mf_values = mfd.mf or {0, 0, 0}
-            mfd:settextf("%2.1f%%", mf_values[1] * 100)
+            local mf_values = mfd.mf or {original = {0, 0, 0}, weighted = {0, 0, 0}}
+            mfd:settextf("%2.1f%% (%2.1f%%)", mf_values.original[1] * 100, mf_values.weighted[1] * 100)
         end
     },
     -- Second Text Element (ManipFactor Value)
@@ -490,20 +581,21 @@ t[#t + 1] = Def.ActorFrame {
             local mf_values = GetManipFactor()
             self.mf = mf_values -- Store mf in self for access in MouseOverCommand
 
-            self:diffuse(byMF(mf_values[1]))
-            self:settextf("%2.1f%%", mf_values[1] * 100)
+            -- Use the weighted MF for color, original MF for display
+            self:diffuse(byMF(mf_values.weighted[1]))
+            self:settextf("%2.1f%% (%2.1f%%)", mf_values.original[1] * 100, mf_values.weighted[1] * 100)
         end,
         MouseOverCommand = function(self)
-            local mf_values = self.mf or {0, 0, 0}
+            local mf_values = self.mf or {original = {0, 0, 0}, weighted = {0, 0, 0}}
             if aspectRatio < 1.6 then
-                self:settextf("(L: %2.1f%% R: %2.1f%%) %2.1f%%", mf_values[2] * 100, mf_values[3] * 100, mf_values[1] * 100)
+                self:settextf("(L: %2.1f%% R: %2.1f%%) %2.1f%%", mf_values.original[2] * 100, mf_values.original[3] * 100, mf_values.original[1] * 100)
             else
-                self:settextf("%2.1f%% (L: %2.1f%% R: %2.1f%%)", mf_values[1] * 100, mf_values[2] * 100, mf_values[3] * 100)
+                self:settextf("%2.1f%% (L: %2.1f%% R: %2.1f%%)", mf_values.original[1] * 100, mf_values.original[2] * 100, mf_values.original[3] * 100)
             end
         end,
         MouseOutCommand = function(self)
-            local mf_values = self.mf or {0, 0, 0}
-            self:settextf("%2.1f%%", mf_values[1] * 100)
+            local mf_values = self.mf or {original = {0, 0, 0}, weighted = {0, 0, 0}}
+            self:settextf("%2.1f%% (%2.1f%%)", mf_values.original[1] * 100, mf_values.weighted[1] * 100)
         end
     }
 }
