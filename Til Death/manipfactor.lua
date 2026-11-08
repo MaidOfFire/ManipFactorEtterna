@@ -127,8 +127,19 @@ local function GenerateKeyData(offsetVector, timingVector, trackVector, trackNum
             table.insert(keyData, {timingVector[i], offsetVector[i]})
         end
     end
-    if #keyData >= 2 then -- Throw out tracks(keys) which have less than 2 notes to avoid nil values
-        return keyData
+        if #keyData >= 2 then -- Throw out tracks(keys) which have less than 2 notes to avoid nil values
+            local seen = {}
+            local deduped = {}
+            for i = 1, #keyData do -- Look for duplicated notes
+                local r = keyData[i]
+                local key = tostring(r[3]) .. "|" .. tostring(r[1])
+                if not seen[key] then
+                    seen[key] = true
+                    table.insert(deduped, r)
+                end
+            end
+
+        return deduped
     else
         return false
     end
