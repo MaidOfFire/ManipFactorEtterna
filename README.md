@@ -9,7 +9,7 @@ How MF v2 is computed:
 * Pairs with a missed note are not counted: MF shows only bunching that can be seen in the replay.
 * `MF = 2 x sum c / notes`, over all notes of the play: the share of notes that were bunched. Jumping a whole trill gives 100%. Left and right hands use their own notes.
 * The number in brackets is the trill MF: the same sum over only the notes that are in pairs, i.e. how bunched the trill parts were, whatever their share of the chart. It shows N/A when the play has no pairs (MF is then 0).
-* Colours carry over the old ones (yellow at 20%, red at 40% of the old MF) by matching the measures score by score: MF is yellow at 12% and red from 26%, the trill MF yellow at 19% and red from 42%.
+* Colours carry over the dMF ones (yellow at 20%, red at 40% of dMF, the dynamic userscript on the dev branch) by matching the measures score by score: MF is yellow at 12% and red from 26%, the trill MF yellow at 19% and red from 42%.
 
 Follow the instructions below for installation:
 
