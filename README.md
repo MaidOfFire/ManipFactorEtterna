@@ -1,6 +1,15 @@
 # ManipFactor Etterna
 An Etterna addon that estimates the amount of manip based on replay data, introducing a new metric for play accuracy. Offers both a browser-based version for EtternaOnline and an In-Game version. Hover the cursor to see left and right hands separately.
 
+## MF v2
+How MF v2 is computed:
+* Per hand, neighbouring note rows on different fingers form a pair when they are at most 150 ms apart in the chart (chord row to chord row is not a pair).
+* Each pair is scored by how much of its gap was closed: `c = clamp((gap - |played gap|) / I, 0, 1)`, where `I` is the time the finger needs to repeat a note at its current jack load. Playing as written gives 0, hitting both notes together gives 1.
+* Pairs with a missed note are not counted: MF shows only bunching that can be seen in the replay.
+* `MF = 2 x sum c / notes`, over all notes of the play: the share of notes that were bunched. Jumping a whole trill gives 100%. Left and right hands use their own notes.
+* The number in brackets is the trill MF: the same sum over only the notes that are in pairs, i.e. how bunched the trill parts were, whatever their share of the chart. It shows N/A when the play has no pairs (MF is then 0).
+* Colours carry over the old ones (yellow at 20%, red at 40% of the old MF) by matching the measures score by score: MF is yellow at 12% and red from 26%, the trill MF yellow at 19% and red from 42%.
+
 Follow the instructions below for installation:
 
 ## EtternaOnline Installation:

@@ -1,4 +1,4 @@
---Version: 09.16.24 19:34
+--Version: MFv2 2026-11-25
 --For Rebirth
 local t = Def.ActorFrame {}
 
@@ -6,27 +6,6 @@ local score = SCOREMAN:GetMostRecentScore()
 if not score then
     score = SCOREMAN:GetTempReplayScore()
 end
-
-local td = {} -- chart timing data
-local dvt = {} -- offset vector
-local ctt = {} -- track vector
-local nrt = {} -- noterow vector
-local wuab = {} -- note timing vector
-local ntt = {} -- note type vector
-
--- key data
-local key0Data
-local key1Data
-local key2Data
-local key3Data
-
--- deviations
-local k0to1 = {}
-local k1to0 = {}
-local k2to3 = {}
-local k3to2 = {}
-
-local mf = {} -- manip factor
 
 local aspectRatio = GetScreenAspectRatio()
 
@@ -42,285 +21,155 @@ else
     mfDisplayY = SCREEN_BOTTOM - 241
 end
 
--- filter table by percentiles
-local function FilterTable(low, high, x, eps)
-    local y = {}
-    for i = 1, #x do
-        if x[i] > (low - eps) and x[i] < (high + eps) and x[i] ~= 0 then
-            table.insert(y, x[i])
+local td = {} -- chart timing data
+local dvt = {} -- offset vector
+local ctt = {} -- track vector
+local nrt = {} -- noterow vector
+local wuab = {} -- note timing vector
+local ntt = {} -- note type vector
+
+local mf = {} -- manip factor {total, left, right, trill}
+
+--[[ MF v2
+  Per hand, consecutive note rows on different fingers form a pair when the chart gap g is at most 150 ms
+  (chord row -> chord row is not a pair). For each pair the later note A (one finger) and the earlier note B
+  (other finger):
+    I = time the finger needs to repeat a note at its current jack load:
+        S = leaky count of that finger's notes (memory 150 ms), J = max(S_A, S_B * exp(-g/150)),
+        I = -150 * ln(1 - 1/J) / 2   (I = g when J <= 1)
+    p = played gap = g + offset_A - offset_B
+    c = clamp((g - |p|) / I, 0, 1)   -- 0 when played as written, 1 when the two notes are hit together
+    pairs with a missed note are not counted (MF shows only bunching seen in the replay)
+  MF = 2 * sum c / notes (all notes of the play): the share of notes that were bunched. Jumping a whole trill gives 100%.
+  Left and right hands: their own sum divided by their own notes.
+  Trill MF (in brackets) = 2 * sum c / notes in pairs with both notes hit: how bunched the trill parts were,
+  whatever their share of the chart. ]]
+local MF_GATE = 150 -- ms, largest chart gap of a pair
+local MF_TAU = 150 -- ms, jack-load memory
+local MF_MISS = 180 -- ms, offsets at or beyond this are misses
+
+-- one finger's notes, sorted by time, with the leaky jack count S
+local function FingerNotes(offsetVector, timingVector, trackVector, track, tntypeVector)
+    local a, seen = {}, {}
+    for i = 1, #offsetVector do
+        if trackVector[i] == track and tntypeVector[i] ~= "TapNoteType_Mine" and tntypeVector[i] ~= "TapNoteType_HoldTail" then
+            local t = math.floor(timingVector[i] * 10 + 0.5) / 10
+            if not seen[t] then -- throw out duplicated notes
+                seen[t] = true
+                local e = offsetVector[i]
+                if math.abs(e) >= MF_MISS then e = nil end
+                a[#a + 1] = {t = t, e = e}
+            end
         end
     end
-    return y
+    table.sort(a, function(p, q) return p.t < q.t end)
+    local S = 0
+    for i = 1, #a do
+        if i == 1 then S = 1 else S = 1 + S * math.exp(-(a[i].t - a[i - 1].t) / MF_TAU) end
+        a[i].S = S
+    end
+    return a
 end
 
--- filter deviations table by time
-local function FilterTableByTime(x, time)
-    local y = {}
-    for i = 1, #x do
-        if x[i][1] <= time then
-            table.insert(y, x[i])
+-- MF numerator, notes in counted pairs and note count of one hand, using notes up to time `upto` (ms; nil = all)
+local function HandMF(f0, f1, upto)
+    local rows, ts, notes = {}, {}, 0
+    for f, a in ipairs({f0, f1}) do
+        for _, n in ipairs(a) do
+            if upto == nil or n.t <= upto then
+                local r = rows[n.t]
+                if not r then r = {}; rows[n.t] = r; ts[#ts + 1] = n.t end
+                r[f] = n
+                notes = notes + 1
+            end
         end
     end
-    return y
-end
-
--- Helper function to calculate Arithmetic Mean
-local function ArithmeticMean(x)
-    local sum = 0
-    for i = 1, #x do
-        sum = sum + x[i]
+    table.sort(ts)
+    local sum, inPair = 0, {}
+    for i = 2, #ts do
+        local r0, r1, g = rows[ts[i - 1]], rows[ts[i]], ts[i] - ts[i - 1]
+        if not ((r0[1] and r0[2] and r1[1] and r1[2]) or g > MF_GATE + 1e-7) then
+            for f = 1, 2 do
+                local A, B = r1[f], r0[3 - f]
+                if A and B and A.e ~= nil and B.e ~= nil then
+                    inPair[A] = true
+                    inPair[B] = true
+                    local J = math.max(A.S, B.S * math.exp(-g / MF_TAU))
+                    local I = g
+                    if J > 1 + 1e-9 then I = -MF_TAU * math.log(1 - 1 / J) / 2 end
+                    local c = (g - math.abs(g + A.e - B.e)) / I
+                    if c > 1 then c = 1 end
+                    if c > 0 then sum = sum + 2 * c end
+                end
+            end
+        end
     end
-    return sum / #x
+    local eligible = 0
+    for _ in pairs(inPair) do eligible = eligible + 1 end
+    return sum, eligible, notes
 end
 
-local function ArithmeticMeanForDeviatons(x)
-    local sum = 0
-    for i = 1, #x do
-        sum = sum + x[i][2]
+local fingers = {}
+
+local function MFUpTo(upto)
+    local sL, pL, nL = HandMF(fingers[1], fingers[2], upto)
+    local sR, pR, nR = HandMF(fingers[3], fingers[4], upto)
+    local total = (nL + nR > 0) and (sL + sR) / (nL + nR) or 0
+    local left = nL > 0 and sL / nL or 0
+    local right = nR > 0 and sR / nR or 0
+    local trill = nil -- no counted pairs: trill MF is undefined (N/A), not 0
+    if pL + pR > 0 then trill = (sL + sR) / (pL + pR) end
+    return {total, left, right, trill}
+end
+
+-- Get manip factor {total, left, right, trill}
+local function GetManipFactor()
+    for k = 0, 3 do
+        fingers[k + 1] = FingerNotes(dvt, wuab, ctt, k, ntt)
     end
-    return sum / #x
+    return MFUpTo(nil)
 end
 
--- Helper function to calculate Weighted Mean
-local function WeightedMean(x, w)
-    local sump = 0
-    local sum = 0
-    for i = 1, #x do
-        sump = sump + (x[i] * w[i])
-        sum = sum + w[i]
-    end
-    return sump / sum
+-- Manip factor of the notes up to a row time (ms)
+function GetManipFactorForRow(time)
+    if #fingers == 0 then return 0 end
+    return MFUpTo(time)[1]
 end
 
--- Helper function to calculate the 5th and 95th percentiles
-local function Percentile(sortedArray, p)
-    local index = (p / 100) * (#sortedArray - 1) + 1
-    local lowerBound = math.floor(index)
-    local upperBound = math.ceil(index)
-    local fracPart = index - lowerBound
-
-    if fracPart == 0 then
-        return sortedArray[lowerBound]
+-- mf value to color: green 0 -> yellow at `mid` -> red from `top` and above.
+-- MF: yellow 12%, red 26%; trill MF (brackets): yellow 19%, red 42%. Both carry over the old dMF colours (yellow 20%, red 40%):
+-- the median MF v2 of scores at dMF 20% / 40% is 12% / 26%, the median trill MF 19% / 42%.
+local function byMF(x, mid, top)
+    mid, top = mid or 0.12, top or 0.26
+    local hue -- 120 (green) to 60 (yellow) to 0 (red) degrees
+    if x <= mid then
+        hue = 120 - 60 * x / mid
     else
-        return sortedArray[lowerBound] + fracPart * (sortedArray[upperBound] - sortedArray[lowerBound])
+        hue = math.max(0, 60 - 60 * (x - mid) / (top - mid))
     end
-end
-
--- mf value to hsv color
-local function byMF(x)
-    if x > 0.4 then
-        x = 0.4
-    end
-    -- Calculate the hue from 0 (green) to 0.4 (red)
-    local hue = 120 - (x * 300) -- 120 to 0 degrees
-    local saturation = 0.9 -- Full saturation
-    local brightness = 0.9 -- Full brightness
+    local saturation = 0.9
+    local brightness = 0.9
 
     return HSV(hue, saturation, brightness)
 end
 
--- Generate key data
-local function GenerateKeyData(offsetVector, timingVector, trackVector, trackNum, tntypeVector)
-    local keyData = {}
-    for i = 1, #offsetVector do
-        if trackVector[i] == trackNum and tntypeVector[i] ~= "TapNoteType_Mine" and tntypeVector[i] ~= "TapNoteType_HoldTail" then
-            table.insert(keyData, {timingVector[i], offsetVector[i]})
-        end
-    end
-    if #keyData >= 2 then -- Throw out tracks(keys) which have less than 2 notes to avoid nil values
-        return keyData
+-- Show "MF (trill MF)", optionally with the hands; the bracket gets its own colour
+local function ShowMF(actor, withHands, handsFirst)
+    local main = string.format("%2.1f%%", mf[1] * 100)
+    local br = mf[4] and string.format("(%2.1f%%)", mf[4] * 100) or "(N/A)"
+    local hands = string.format("(L: %2.1f%% R: %2.1f%%)", mf[2] * 100, mf[3] * 100)
+    local text, pos
+    if withHands and handsFirst then
+        text, pos = hands .. " " .. main .. " " .. br, #hands + #main + 2
+    elseif withHands then
+        text, pos = main .. " " .. br .. " " .. hands, #main + 1
     else
-        return false
+        text, pos = main .. " " .. br, #main + 1
     end
-end
-
--- Function to calculate deviations
-local function CalculateDeviations(keyAData, keyBData)
-    if keyAData and keyBData then
-        local eps = 0.1
-        local deviations = {}
-
-        -- Extract time values from key data
-        local timesA = {}
-        local timesB = {}
-        for i = 1, #keyAData do
-            table.insert(timesA, keyAData[i][1])
-        end
-        for i = 1, #keyBData do
-            table.insert(timesB, keyBData[i][1])
-        end
-
-        -- Sort the note times for both keys
-        table.sort(timesA)
-        table.sort(timesB)
-
-        -- Compute differences between sorted note times
-        local diffA = {}
-        local diffB = {}
-        for i = 2, #timesA do
-            local diff = timesA[i] - timesA[i - 1]
-            if diff ~= 0 then
-                table.insert(diffA, diff)
-            end
-        end
-        for i = 2, #timesB do
-            local diff = timesB[i] - timesB[i - 1]
-            if diff ~= 0 then
-                table.insert(diffB, diff)
-            end
-        end
-
-        -- Calculate percentiles (5th and 95th) for both columns
-        table.sort(diffA)
-        table.sort(diffB)
-
-        local lowerPercentileA = Percentile(diffA, 5)
-        local upperPercentileA = Percentile(diffA, 95)
-        local lowerPercentileB = Percentile(diffB, 5)
-        local upperPercentileB = Percentile(diffB, 95)
-
-        -- Filter differences outside the 5th and 95th percentiles
-        local filteredDiffA = FilterTable(lowerPercentileA, upperPercentileA, diffA, eps)
-        local filteredDiffB = FilterTable(lowerPercentileB, upperPercentileB, diffB, eps)
-
-        -- Calculate arithmetic mean of filtered differences for A and B columns
-        local k0AvgInterval = ArithmeticMean(filteredDiffA)
-        local k1AvgInterval = ArithmeticMean(filteredDiffB)
-
-        -- Average of averages
-        local avgInterval = (k0AvgInterval + k1AvgInterval) / 2
-        -- Halve the interval (for trills)
-        avgInterval = avgInterval / 2
-
-        table.sort(keyAData, function(a, b) return a[1] < b[1] end)
-        table.sort(keyBData, function(a, b) return a[1] < b[1] end)
-        -- Calculate deviations
-        local finder = 1
-        for i = 1, #keyAData do
-            local timeA, errorA = keyAData[i][1], keyAData[i][2]
-
-            -- Find the closest previous note in keyBData
-            local lastKeyBItem
-            for j = finder, #keyBData do
-                if keyBData[j][1] < (timeA - eps) then
-                    lastKeyBItem = keyBData[j]
-                    finder = j
-                else
-                    break
-                end
-            end
-
-            -- Add deviations if conditions are met
-            if lastKeyBItem then
-                local errorB = lastKeyBItem[2]
-                local deviation = (errorB - errorA) / avgInterval
-                local absDeviation = math.abs(deviation)
-                if absDeviation <= 1.5 then
-                    table.insert(deviations, {timeA, absDeviation})
-                end
-            end
-        end
-
-        return deviations
-    else
-        return {0}
-    end
-end
-
--- Get manip factor based on key comparisons
-local function GetManipFactor()
-    -- Generate data for all keys
-    key0Data = GenerateKeyData(dvt, wuab, ctt, 0, ntt)
-    key1Data = GenerateKeyData(dvt, wuab, ctt, 1, ntt)
-    key2Data = GenerateKeyData(dvt, wuab, ctt, 2, ntt)
-    key3Data = GenerateKeyData(dvt, wuab, ctt, 3, ntt)
-
-    -- Calculate deviations between keys
-    k0to1 = CalculateDeviations(key0Data, key1Data)
-    k1to0 = CalculateDeviations(key1Data, key0Data)
-    k2to3 = CalculateDeviations(key2Data, key3Data)
-    k3to2 = CalculateDeviations(key3Data, key2Data)
-
-    local mfk0to1
-    local mfk1to0
-    local mfk2to3
-    local mfk3to2
-
-    -- Calculate the mean manip factors
-    if key0Data ~= false and key1Data ~= false then
-        mfk0to1 = ArithmeticMeanForDeviatons(k0to1)
-        mfk1to0 = ArithmeticMeanForDeviatons(k1to0)
-    else
-        mfk0to1 = 0
-        mfk1to0 = 0
-    end
-    if key2Data ~= false and key3Data ~= false then
-        mfk2to3 = ArithmeticMeanForDeviatons(k2to3)
-        mfk3to2 = ArithmeticMeanForDeviatons(k3to2)
-    else
-        mfk2to3 = 0
-        mfk3to2 = 0
-    end
-
-    -- Final manip factor
-    local mftotal = WeightedMean({mfk0to1, mfk1to0, mfk2to3, mfk3to2}, {#k0to1, #k1to0, #k2to3, #k3to2})
-
-    -- Right/Left mf
-    local mfleft = WeightedMean({mfk0to1, mfk1to0}, {#k0to1, #k1to0})
-    local mfright = WeightedMean({mfk2to3, mfk3to2}, {#k2to3, #k3to2})
-
-    if mftotal ~= mftotal then -- x ~= x means that x == NaN
-        mftotal, mfleft, mfright = 0, 0, 0
-    end
-
-    return {mftotal, mfleft, mfright}
-end
-
--- Get manip factor based on key comparisons and row time
-function GetManipFactorForRow(time)
-    local tk0to1 = {}
-    local tk1to0 = {}
-    local tk2to3 = {}
-    local tk3to2 = {}
-
-    if key0Data ~= false and key1Data ~= false then
-        tk0to1 = FilterTableByTime(k0to1, time)
-        tk1to0 = FilterTableByTime(k1to0, time)
-    end
-    if key2Data ~= false and key3Data ~= false then
-        tk2to3 = FilterTableByTime(k2to3, time)
-        tk3to2 = FilterTableByTime(k3to2, time)
-    end
-
-    local mfk0to1
-    local mfk1to0
-    local mfk2to3
-    local mfk3to2
-
-    -- Calculate the mean manip factors
-    if key0Data ~= false and key1Data ~= false then
-        mfk0to1 = ArithmeticMeanForDeviatons(tk0to1)
-        mfk1to0 = ArithmeticMeanForDeviatons(tk1to0)
-    else
-        mfk0to1 = 0
-        mfk1to0 = 0
-    end
-    if key2Data ~= false and key3Data ~= false then
-        mfk2to3 = ArithmeticMeanForDeviatons(tk2to3)
-        mfk3to2 = ArithmeticMeanForDeviatons(tk3to2)
-    else
-        mfk2to3 = 0
-        mfk3to2 = 0
-    end
-
-    -- Final manip factor
-    local mftotal = WeightedMean({mfk0to1, mfk1to0, mfk2to3, mfk3to2}, {#tk0to1, #tk1to0, #tk2to3, #tk3to2})
-
-    if mftotal ~= mftotal then -- x ~= x means that x == NaN
-        mftotal = 0
-    end
-
-    return mftotal
+    actor:settext(text)
+    actor:ClearAttributes()
+    actor:diffuse(byMF(mf[1]))
+    actor:AddAttribute(pos, {Length = #br, Diffuse = mf[4] and byMF(mf[4], 0.19, 0.42) or color("#9a9993")})
 end
 
 -- Manip factor display
@@ -333,10 +182,10 @@ t[#t + 1] = Def.ActorFrame {
             self:diffusealpha(0)
         end,
         MouseOverCommand = function(self)
-            self:GetParent():GetChild("ManipFactor"):settextf("(L: %2.1f%% R: %2.1f%%) %2.1f%%", mf[2] * 100, mf[3] * 100, mf[1] * 100)
+            ShowMF(self:GetParent():GetChild("ManipFactor"), true, true)
         end,
         MouseOutCommand = function(self)
-            self:GetParent():GetChild("ManipFactor"):settextf("%2.1f%%", mf[1] * 100)
+            ShowMF(self:GetParent():GetChild("ManipFactor"), false)
         end
     },
     LoadFont("Common Normal") .. {
@@ -383,8 +232,7 @@ t[#t + 1] = Def.ActorFrame {
 
             mf = GetManipFactor()
 
-            self:diffuse(byMF(mf[1]))
-            self:settextf("%2.1f%%", mf[1] * 100)
+            ShowMF(self, false)
         end
     }
 }
