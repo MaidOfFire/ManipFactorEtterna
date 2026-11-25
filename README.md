@@ -3,7 +3,8 @@ An Etterna addon that estimates the amount of manip based on replay data, introd
 
 ## MF v2
 How MF v2 is computed:
-* Per hand, neighbouring note rows on different fingers form a pair when they are at most 150 ms apart in the chart (chord row to chord row is not a pair).
+* Hands are the left and right half of the columns, in any keymode (on odd keymodes the middle column belongs to neither hand, but its notes count in the total).
+* Per hand, neighbouring note rows on different fingers form a pair when they are at most 150 ms apart in the chart (chord row to chord row is not a pair). With three or more fingers per hand, each note pairs once, with the earlier row's note it closed the most.
 * Each pair is scored by how much of its gap was closed: `c = clamp((gap - |played gap|) / I, 0, 1)`, where `I` is the time the finger needs to repeat a note at its current jack load. Playing as written gives 0, hitting both notes together gives 1.
 * Pairs with a missed note are not counted: MF shows only bunching that can be seen in the replay.
 * `MF = 2 x sum c / notes`, over all notes of the play: the share of notes that were bunched. Jumping a whole trill gives 100%. Left and right hands use their own notes.

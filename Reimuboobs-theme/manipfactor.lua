@@ -24,6 +24,7 @@ local ntt = {} -- note type vector
 local mf = {} -- manip factor {total, left, right, trill}
 
 --[[ MF v2
+  Hands: the left and right half of the columns (any keymode; on odd keymodes the middle column is in neither hand).
   Per hand, consecutive note rows on different fingers form a pair when the chart gap g is at most 150 ms
   (chord row -> chord row is not a pair). For each pair the later note A (one finger) and the earlier note B
   (other finger):
@@ -64,15 +65,19 @@ local function FingerNotes(offsetVector, timingVector, trackVector, track, tntyp
     return a
 end
 
--- MF numerator, notes in counted pairs and note count of one hand, using notes up to time `upto` (ms; nil = all)
-local function HandMF(f0, f1, upto)
+-- MF numerator, notes in counted pairs and note count of one hand (its columns' note lists), using notes up to time `upto`
+-- (ms; nil = all). Any number of fingers per hand: neighbouring rows pair unless both are chords (2+ notes of the hand); each
+-- later note pairs once, with the earlier row's note on another finger it closed the most (ties: the nearest finger). With two
+-- fingers per hand (4K) there is only one such note, so this is the 4K rule exactly.
+local function HandMF(cols, upto)
     local rows, ts, notes = {}, {}, 0
-    for f, a in ipairs({f0, f1}) do
+    for f, a in ipairs(cols) do
         for _, n in ipairs(a) do
             if upto == nil or n.t <= upto then
                 local r = rows[n.t]
-                if not r then r = {}; rows[n.t] = r; ts[#ts + 1] = n.t end
+                if not r then r = {count = 0}; rows[n.t] = r; ts[#ts + 1] = n.t end
                 r[f] = n
+                r.count = r.count + 1
                 notes = notes + 1
             end
         end
@@ -81,18 +86,28 @@ local function HandMF(f0, f1, upto)
     local sum, inPair = 0, {}
     for i = 2, #ts do
         local r0, r1, g = rows[ts[i - 1]], rows[ts[i]], ts[i] - ts[i - 1]
-        if not ((r0[1] and r0[2] and r1[1] and r1[2]) or g > MF_GATE + 1e-7) then
-            for f = 1, 2 do
-                local A, B = r1[f], r0[3 - f]
-                if A and B and A.e ~= nil and B.e ~= nil then
-                    inPair[A] = true
-                    inPair[B] = true
-                    local J = math.max(A.S, B.S * math.exp(-g / MF_TAU))
-                    local I = g
-                    if J > 1 + 1e-9 then I = -MF_TAU * math.log(1 - 1 / J) / 2 end
-                    local c = (g - math.abs(g + A.e - B.e)) / I
-                    if c > 1 then c = 1 end
-                    if c > 0 then sum = sum + 2 * c end
+        if not ((r0.count >= 2 and r1.count >= 2) or g > MF_GATE + 1e-7) then
+            for fa = 1, #cols do
+                local A = r1[fa]
+                if A and A.e ~= nil then
+                    local best, bestC, bestD
+                    for fb = 1, #cols do
+                        local B = r0[fb]
+                        if fb ~= fa and B and B.e ~= nil then
+                            local J = math.max(A.S, B.S * math.exp(-g / MF_TAU))
+                            local I = g
+                            if J > 1 + 1e-9 then I = -MF_TAU * math.log(1 - 1 / J) / 2 end
+                            local c = (g - math.abs(g + A.e - B.e)) / I
+                            if c > 1 then c = 1 elseif c < 0 then c = 0 end
+                            local d = math.abs(fb - fa)
+                            if best == nil or c > bestC or (c == bestC and d < bestD) then best, bestC, bestD = B, c, d end
+                        end
+                    end
+                    if best then
+                        inPair[A] = true
+                        inPair[best] = true
+                        sum = sum + 2 * bestC
+                    end
                 end
             end
         end
@@ -102,12 +117,52 @@ local function HandMF(f0, f1, upto)
     return sum, eligible, notes
 end
 
-local fingers = {}
+-- Key count of the chart (as dev's keymode support); unknown steps types fall back to the highest column in the replay
+local function GetKeymode()
+    local keys = {
+        StepsType_Dance_Threepanel = 3,
+        StepsType_Dance_Single = 4,
+        StepsType_Pump_Single = 5,
+        StepsType_Pnm_Five = 5,
+        StepsType_Pump_Halfdouble = 6,
+        StepsType_Bm_Single5 = 6,
+        StepsType_Dance_Solo = 6,
+        StepsType_Kb7_Single = 7,
+        StepsType_Bm_Single7 = 8,
+        StepsType_Dance_Double = 8,
+        StepsType_Pnm_Nine = 9,
+        StepsType_Pump_Double = 10,
+        StepsType_Bm_Double5 = 12,
+        StepsType_Bm_Double7 = 16,
+    }
+    local steps = GAMESTATE and GAMESTATE:GetCurrentSteps()
+    local k = steps and keys[steps:GetStepsType()]
+    if k then return k end
+    k = 0
+    for i = 1, #ctt do if ctt[i] + 1 > k then k = ctt[i] + 1 end end
+    return k
+end
+
+-- Columns of each hand: the left half and the right half; on odd keymodes the middle column belongs to neither hand
+-- (its notes still count in the MF denominator)
+local function HandColumns(keymode)
+    local half = math.floor(keymode / 2)
+    local left, right = {}, {}
+    for c = 0, half - 1 do left[#left + 1] = c end
+    for c = keymode - half, keymode - 1 do right[#right + 1] = c end
+    return left, right
+end
+
+local hands = {{}, {}} -- note lists per column, per hand
+local middle = {} -- notes outside both hands (middle column of odd keymodes)
 
 local function MFUpTo(upto)
-    local sL, pL, nL = HandMF(fingers[1], fingers[2], upto)
-    local sR, pR, nR = HandMF(fingers[3], fingers[4], upto)
-    local total = (nL + nR > 0) and (sL + sR) / (nL + nR) or 0
+    local sL, pL, nL = HandMF(hands[1], upto)
+    local sR, pR, nR = HandMF(hands[2], upto)
+    local nM = 0
+    for _, n in ipairs(middle) do if upto == nil or n.t <= upto then nM = nM + 1 end end
+    local nAll = nL + nR + nM
+    local total = nAll > 0 and (sL + sR) / nAll or 0
     local left = nL > 0 and sL / nL or 0
     local right = nR > 0 and sR / nR or 0
     local trill = nil -- no counted pairs: trill MF is undefined (N/A), not 0
@@ -117,15 +172,22 @@ end
 
 -- Get manip factor {total, left, right, trill}
 local function GetManipFactor()
-    for k = 0, 3 do
-        fingers[k + 1] = FingerNotes(dvt, wuab, ctt, k, ntt)
+    local keymode = GetKeymode()
+    local leftCols, rightCols = HandColumns(keymode)
+    hands = {{}, {}}
+    for h, cols in ipairs({leftCols, rightCols}) do
+        for _, c in ipairs(cols) do
+            hands[h][#hands[h] + 1] = FingerNotes(dvt, wuab, ctt, c, ntt)
+        end
     end
+    middle = {}
+    if keymode % 2 == 1 then middle = FingerNotes(dvt, wuab, ctt, (keymode - 1) / 2, ntt) end
     return MFUpTo(nil)
 end
 
 -- Manip factor of the notes up to a row time (ms)
 function GetManipFactorForRow(time)
-    if #fingers == 0 then return 0 end
+    if #hands[1] + #hands[2] == 0 then return 0 end
     return MFUpTo(time)[1]
 end
 
